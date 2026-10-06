@@ -27,7 +27,8 @@ export default function PencatatanTagihanAdmin() {
 
   const handleFinalisasi = () => {
     setStatusInvoice('Finalisasi');
-    alert('Invoice berhasil difinalisasi dan digenerate!');
+    // Invoice sudah siap, langsung navigasi ke halaman pembayaran
+    router.push('/Admin/pembayaran');
   };
 
   const handleLanjutPembayaran = () => {

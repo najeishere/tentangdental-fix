@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { fetchApi } from '@/utils/api';
 
 export default function PembayaranAdmin() {
   const router = useRouter();
@@ -17,10 +18,12 @@ export default function PembayaranAdmin() {
   const [metodePembayaran, setMetodePembayaran] = useState<'Tunai' | 'Transfer' | 'QRIS'>('Tunai');
   const [uangDiterima, setUangDiterima] = useState('');
 
-  // Data Keuangan & Invoice
+  // Data Keuangan & Invoice — dari API
   const [kasMasuk, setKasMasuk] = useState(4545000);
   const [jumlahSudahLunas, setJumlahSudahLunas] = useState(2);
   const [isLunas, setIsLunas] = useState(false);
+  const [visit, setVisit] = useState(null);
+  const [totalTagihan, setTotalTagihan] = useState(0);
 
   const [daftarLunas, setDaftarLunas] = useState([
     { nama: 'Reza Pratama', inv: 'INV-2026-091', via: 'via QRIS', nominal: 'Rp 4.150.000' },
@@ -39,16 +42,68 @@ export default function PembayaranAdmin() {
     if (savedJabatan) setJabatanAdmin(savedJabatan);
   }, []);
 
-  const handleKonfirmasiPembayaran = () => {
-    const totalTagihan = 378000;
-    setKasMasuk(prev => prev + totalTagihan);
-    setJumlahSudahLunas(prev => prev + 1);
-    setIsLunas(true);
-    setDaftarLunas(prev => [
-      { nama: 'Dewi Rahayu', inv: 'INV-2026-092', via: `via ${metodePembayaran}`, nominal: 'Rp 378.000' },
-      ...prev
-    ]);
-    setStep('sukses');
+  // Ambil data kunjungan/Invoice ketika komponen mount atau step berubah
+  useEffect(() => {
+    const loadVisit = async () => {
+      try {
+        // Coba ambil visit terakhir atau yang sedang diproses
+        // Untuk sekarang gunakan visit statis karena belum ada navigasi dari pencatatan-tagihan
+        // di masa depan bisa dari API: fetchApi('/visits/latest')
+        const dummyVisit = {
+          id: 13,
+          invoice_number: 'INV-2026-092',
+          total: 378000,
+          payment_status: 'partial',
+          patient_name: 'Dewi Rahayu',
+          visit_date: '16 Sep 2026',
+        };
+        setVisit(dummyVisit);
+        setTotalTagihan(dummyVisit?.total ?? 0);
+      } catch (e) {
+        console.error('Gagal load visit', e);
+      }
+    };
+    loadVisit();
+  }, [step]);
+
+  const handleKonfirmasiPembayaran = async () => {
+    if (!visit || totalTagihan <= 0) {
+      alert('Data invoice tidak lengkap');
+      return;
+    }
+
+    const amount = metodePembayaran === 'Tunai' 
+      ? (parseInt(uangDiterima.replace(/[^0-9]/g, '')) || totalTagihan)
+      : totalTagihan;
+
+    try {
+      await fetchApi('/payments', {
+        method: 'POST',
+        body: JSON.stringify({
+          visit_id: visit.id,
+          method: metodePembayaran,
+          amount,
+          paid_by: 'Admin Owner',
+        }),
+      });
+
+      // Setelah pembayaran sukses, perbarui state lokal
+      const paymentAmount = metodePembayaran === 'Tunai' ? amount : totalTagihan;
+      setKasMasuk(prev => prev + paymentAmount);
+      setJumlahSudahLunas(prev => prev + 1);
+      setIsLunas(true);
+
+      // Tambahkan ke daftar lunas
+      setDaftarLunas(prev => [
+        { nama: visit.patient_name, inv: visit.invoice_number, via: `via ${metodePembayaran}`, nominal: `Rp ${paymentAmount.toLocaleString('id-ID')}` },
+        ...prev
+      ]);
+
+      setStep('sukses');
+    } catch (err: any) {
+      alert(err.message || 'Gagal mencatat pembayaran. Periksa kembali data.');
+      console.error('Payment error:', err);
+    }
   };
 
   return (

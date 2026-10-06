@@ -275,6 +275,10 @@ export default function RekonsiliasiAdmin() {
         {/* Isi Halaman */}
         <main className="p-6 space-y-6 overflow-y-auto">
           
+          <div className="px-4 py-3 bg-amber-50 border border-amber-100 text-amber-700 rounded-xl text-[11px] font-semibold">
+            Data contoh — halaman ini belum terhubung backend (belum ada endpoint anggaran/alokasi kas).
+          </div>
+
           {currentDetail ? (
             /* HALAMAN DETAIL KATEGORI ALOKASI */
             <div className="space-y-6">

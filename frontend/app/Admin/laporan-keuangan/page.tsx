@@ -5,6 +5,53 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { fetchApi } from '@/utils/api';
+
+const BULAN_OPTIONS = [
+  { value: '2026-10', label: 'Oktober 2026' },
+  { value: '2026-09', label: 'September 2026' },
+  { value: '2026-08', label: 'Agustus 2026' },
+  { value: '2026-07', label: 'Juli 2026' },
+];
+
+const periodeRange = (bulan: string) => {
+  const [y, m] = bulan.split('-').map(Number);
+  const from = `${bulan}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const to = `${bulan}-${String(lastDay).padStart(2, '0')}`;
+  return { from, to };
+};
+
+const rupiah = (n: number | string) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(n));
+
+const akunLabel = (account: string) => {
+  const map: Record<string, string> = {
+    salary: 'Gaji & Bagi Hasil',
+    inventory: 'Beban BMHP / Persediaan',
+    lab: 'Biaya Lab Vendor',
+    utilities: 'Utilitas',
+    maintenance: 'Maintenance Alat',
+    expense: 'Beban Operasional',
+  };
+  return map[account] ?? account.charAt(0).toUpperCase() + account.slice(1);
+};
+
+type PlData = {
+  period?: { from: string; to: string };
+  method?: string;
+  revenue?: { total_revenue: number };
+  expenses?: { breakdown?: Record<string, number>; total_expenses: number };
+  net_profit?: number;
+  memo?: { doctor_commissions_accrued_period?: number; note?: string };
+} | null;
+
+type CfData = {
+  period?: { from: string; to: string };
+  inflow?: { cash: number; qris: number; transfer: number; total_inflow: number };
+  outflow?: { operational_expenses: number; total_outflow: number };
+  net_cash_flow?: number;
+} | null;
 
 export default function LaporanKeuanganAdmin() {
   const router = useRouter();
@@ -14,7 +61,10 @@ export default function LaporanKeuanganAdmin() {
 
   // State untuk Tab Aktif: 'Laba Rugi' | 'Arus Kas' | 'Neraca'
   const [activeTab, setActiveTab] = useState<'Laba Rugi' | 'Arus Kas' | 'Neraca'>('Laba Rugi');
-  const [selectedBulan, setSelectedBulan] = useState('September 2026');
+  const [selectedBulan, setSelectedBulan] = useState('2026-09');
+  const [pl, setPl] = useState<PlData>(null);
+  const [cf, setCf] = useState<CfData>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
@@ -23,7 +73,35 @@ export default function LaporanKeuanganAdmin() {
     const savedJabatan = localStorage.getItem('adminJabatan');
     if (savedNama) setNamaAdmin(savedNama);
     if (savedJabatan) setJabatanAdmin(savedJabatan);
-  }, []);
+
+    if (!localStorage.getItem('token')) {
+      router.replace('/login');
+      return;
+    }
+  }, [router]);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      try {
+        const { from, to } = periodeRange(selectedBulan);
+        const qs = `?from=${from}&to=${to}`;
+        const [plJson, cfJson] = await Promise.all([
+          fetchApi(`/admin/reports/profit-and-loss${qs}`),
+          fetchApi(`/admin/reports/cash-flow${qs}`),
+        ]);
+        setPl(plJson?.data ?? null);
+        setCf(cfJson?.data ?? null);
+      } catch (e) {
+        console.error('Gagal memuat laporan', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [selectedBulan]);
+
+  const labelBulan = BULAN_OPTIONS.find((b) => b.value === selectedBulan)?.label ?? selectedBulan;
 
   return (
     <div className="min-h-screen bg-[#F4F5F7] flex font-sans text-slate-800 w-full relative">
@@ -163,9 +241,9 @@ export default function LaporanKeuanganAdmin() {
               onChange={(e) => setSelectedBulan(e.target.value)}
               className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-[#2EC4B6]"
             >
-              <option>September 2026</option>
-              <option>Agustus 2026</option>
-              <option>Juli 2026</option>
+              {BULAN_OPTIONS.map((b) => (
+                <option key={b.value} value={b.value}>{b.label}</option>
+              ))}
             </select>
 
             {/* TAB SWITCHER */}
@@ -191,7 +269,10 @@ export default function LaporanKeuanganAdmin() {
               <div className="flex justify-between items-start pb-4 border-b border-slate-100">
                 <div>
                   <h2 className="text-base font-bold text-slate-900">Laporan Laba Rugi</h2>
-                  <p className="text-xs text-slate-400">1 September 2026 — 30 September 2026</p>
+                  <p className="text-xs text-slate-400">
+                    {pl?.period ? `${pl.period.from} — ${pl.period.to}` : labelBulan}
+                    {pl?.method ? ` · ${pl.method}` : ''}
+                  </p>
                 </div>
                 <button onClick={() => alert('Export PDF Laba Rugi')} className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
                   ↓ Export PDF
@@ -202,26 +283,18 @@ export default function LaporanKeuanganAdmin() {
               <div className="space-y-3 text-xs">
                 <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Pendapatan</p>
                 <div className="space-y-2.5">
-                  <div className="flex justify-between py-1 border-b border-slate-50">
-                    <span className="text-slate-600 font-medium">Jasa Tindakan Umum</span>
-                    <span className="font-bold text-slate-900">Rp 41.400.000</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-slate-50">
-                    <span className="text-slate-600 font-medium">Jasa Tindakan Estetik</span>
-                    <span className="font-bold text-slate-900">Rp 27.200.000</span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-slate-50">
-                    <span className="text-slate-600 font-medium">Jasa Lab (Markup)</span>
-                    <span className="font-bold text-slate-900">Rp 8.600.000</span>
-                  </div>
-                  <div className="flex justify-between py-1">
-                    <span className="text-slate-600 font-medium">Jasa Konsultasi</span>
-                    <span className="font-bold text-slate-900">Rp 8.200.000</span>
-                  </div>
+                  {loading ? (
+                    <p className="text-slate-400">Memuat…</p>
+                  ) : (
+                    <div className="flex justify-between py-1 border-b border-slate-50">
+                      <span className="text-slate-600 font-medium">Pembayaran terkonfirmasi (periode berjalan)</span>
+                      <span className="font-bold text-slate-900">{rupiah(pl?.revenue?.total_revenue ?? 0)}</span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex justify-between items-center pt-3 border-t border-slate-200 font-bold text-slate-900">
                   <span>Total Pendapatan</span>
-                  <span className="text-sm">Rp 85.400.000</span>
+                  <span className="text-sm">{rupiah(pl?.revenue?.total_revenue ?? 0)}</span>
                 </div>
               </div>
 
@@ -229,25 +302,39 @@ export default function LaporanKeuanganAdmin() {
               <div className="space-y-3 text-xs pt-4 border-t border-slate-100">
                 <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Biaya Operasional</p>
                 <div className="space-y-2.5">
-                  <div className="flex justify-between py-1 border-b border-slate-50"><span className="text-slate-600 font-medium">Beban BMHP</span><span className="font-bold text-slate-900">Rp 12.750.000</span></div>
-                  <div className="flex justify-between py-1 border-b border-slate-50"><span className="text-slate-600 font-medium">Biaya Lab Vendor</span><span className="font-bold text-slate-900">Rp 15.300.000</span></div>
-                  <div className="flex justify-between py-1 border-b border-slate-50"><span className="text-slate-600 font-medium">Bagi Hasil Dokter</span><span className="font-bold text-slate-900">Rp 29.750.000</span></div>
-                  <div className="flex justify-between py-1 border-b border-slate-50"><span className="text-slate-600 font-medium">Bagi Hasil Perawat</span><span className="font-bold text-slate-900">Rp 4.250.000</span></div>
-                  <div className="flex justify-between py-1 border-b border-slate-50"><span className="text-slate-600 font-medium">Gaji Staf</span><span className="font-bold text-slate-900">Rp 8.500.000</span></div>
-                  <div className="flex justify-between py-1 border-b border-slate-50"><span className="text-slate-600 font-medium">Utilitas</span><span className="font-bold text-slate-900">Rp 3.400.000</span></div>
-                  <div className="flex justify-between py-1"><span className="text-slate-600 font-medium">Maintenance Alat</span><span className="font-bold text-slate-900">Rp 2.550.000</span></div>
+                  {loading ? (
+                    <p className="text-slate-400">Memuat…</p>
+                  ) : Object.keys(pl?.expenses?.breakdown ?? {}).length === 0 ? (
+                    <p className="text-slate-400">Belum ada beban tercatat pada periode ini.</p>
+                  ) : (
+                    Object.entries(pl!.expenses!.breakdown!).map(([account, amount], i, arr) => (
+                      <div
+                        key={account}
+                        className={`flex justify-between py-1 ${i < arr.length - 1 ? 'border-b border-slate-50' : ''}`}
+                      >
+                        <span className="text-slate-600 font-medium">{akunLabel(account)}</span>
+                        <span className="font-bold text-slate-900">{rupiah(amount)}</span>
+                      </div>
+                    ))
+                  )}
                 </div>
                 <div className="flex justify-between items-center pt-3 border-t border-slate-200 font-bold text-slate-900">
                   <span>Total Biaya</span>
-                  <span className="text-sm">Rp 76.500.000</span>
+                  <span className="text-sm">{rupiah(pl?.expenses?.total_expenses ?? 0)}</span>
                 </div>
               </div>
 
               {/* Laba Bersih Banner */}
               <div className="p-6 bg-teal-50/60 border border-teal-100 rounded-2xl flex justify-between items-center">
                 <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">Laba Bersih</span>
-                <span className="text-lg font-bold text-[#2EC4B6]">Rp 8.900.000</span>
+                <span className="text-lg font-bold text-[#2EC4B6]">{rupiah(pl?.net_profit ?? 0)}</span>
               </div>
+
+              {pl?.memo && (
+                <p className="text-[11px] text-slate-400">
+                  Memo: komisi dokter terakrual periode ini {rupiah(pl.memo.doctor_commissions_accrued_period ?? 0)} — {pl.memo.note}
+                </p>
+              )}
 
             </div>
           )}
@@ -259,7 +346,7 @@ export default function LaporanKeuanganAdmin() {
               <div className="flex justify-between items-start pb-4 border-b border-slate-100">
                 <div>
                   <h2 className="text-base font-bold text-slate-900">Laporan Arus Kas</h2>
-                  <p className="text-xs text-slate-400">September 2026</p>
+                  <p className="text-xs text-slate-400">{cf?.period ? `${cf.period.from} — ${cf.period.to}` : labelBulan}</p>
                 </div>
                 <button onClick={() => alert('Export PDF Arus Kas')} className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
                   ↓ Export PDF
@@ -270,26 +357,23 @@ export default function LaporanKeuanganAdmin() {
               <div className="space-y-3 text-xs">
                 <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Aktivitas Operasi</p>
                 <div className="space-y-2.5">
-                  <div className="flex justify-between py-1 border-b border-slate-50"><span className="text-slate-600 font-medium">Penerimaan dari pasien</span><span className="font-bold text-emerald-600">+Rp 85.400.000</span></div>
-                  <div className="flex justify-between py-1 border-b border-slate-50"><span className="text-slate-600 font-medium">Pembayaran BMHP & Lab</span><span className="font-bold text-rose-500">-Rp 28.050.000</span></div>
-                  <div className="flex justify-between py-1 border-b border-slate-50"><span className="text-slate-600 font-medium">Pembayaran gaji & bagi hasil</span><span className="font-bold text-rose-500">-Rp 42.500.000</span></div>
-                  <div className="flex justify-between py-1"><span className="text-slate-600 font-medium">Pembayaran utilitas</span><span className="font-bold text-rose-500">-Rp 3.400.000</span></div>
+                  {loading ? (
+                    <p className="text-slate-400">Memuat…</p>
+                  ) : (
+                    <>
+                      <div className="flex justify-between py-1 border-b border-slate-50"><span className="text-slate-600 font-medium">Penerimaan tunai (cash)</span><span className="font-bold text-emerald-600">+{rupiah(cf?.inflow?.cash ?? 0)}</span></div>
+                      <div className="flex justify-between py-1 border-b border-slate-50"><span className="text-slate-600 font-medium">Penerimaan QRIS</span><span className="font-bold text-emerald-600">+{rupiah(cf?.inflow?.qris ?? 0)}</span></div>
+                      <div className="flex justify-between py-1 border-b border-slate-50"><span className="text-slate-600 font-medium">Penerimaan transfer</span><span className="font-bold text-emerald-600">+{rupiah(cf?.inflow?.transfer ?? 0)}</span></div>
+                      <div className="flex justify-between py-1 border-b border-slate-50"><span className="text-slate-600 font-medium">Pengeluaran operasional</span><span className="font-bold text-rose-500">-{rupiah(cf?.outflow?.operational_expenses ?? 0)}</span></div>
+                      <div className="flex justify-between py-1"><span className="text-slate-600 font-medium">Total pemasukan</span><span className="font-bold text-emerald-600">+{rupiah(cf?.inflow?.total_inflow ?? 0)}</span></div>
+                    </>
+                  )}
                 </div>
                 <div className="flex justify-between items-center pt-3 border-t border-slate-200 font-bold text-slate-900">
                   <span>Net Arus Kas</span>
-                  <span className="text-sm text-emerald-600">+Rp 11.450.000</span>
-                </div>
-              </div>
-
-              {/* Aktivitas Investasi */}
-              <div className="space-y-3 text-xs pt-4 border-t border-slate-100">
-                <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Aktivitas Investasi</p>
-                <div className="space-y-2.5">
-                  <div className="flex justify-between py-1"><span className="text-slate-600 font-medium">Pembelian alat dental chair</span><span className="font-bold text-rose-500">-Rp 12.000.000</span></div>
-                </div>
-                <div className="flex justify-between items-center pt-3 border-t border-slate-200 font-bold text-slate-900">
-                  <span>Net Arus Kas</span>
-                  <span className="text-sm text-rose-500">Rp -12.000.000</span>
+                  <span className={`text-sm ${(cf?.net_cash_flow ?? 0) >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+                    {(cf?.net_cash_flow ?? 0) >= 0 ? '+' : ''}{rupiah(cf?.net_cash_flow ?? 0)}
+                  </span>
                 </div>
               </div>
 
@@ -303,11 +387,11 @@ export default function LaporanKeuanganAdmin() {
               <div className="flex justify-between items-start pb-4 border-b border-slate-100">
                 <div>
                   <h2 className="text-base font-bold text-slate-900">Neraca Keuangan</h2>
-                  <p className="text-xs text-slate-400">Per 30 September 2026</p>
+                  <p className="text-xs text-slate-400">Per {labelBulan}</p>
                 </div>
-                <button onClick={() => alert('Export PDF Neraca')} className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
-                  ↓ Export PDF
-                </button>
+                <span className="px-3 py-1.5 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-bold">
+                  Data contoh — belum terhubung laporan neraca
+                </span>
               </div>
 
               {/* Dua Kolom Neraca: Aset vs Liabilitas & Ekuitas */}

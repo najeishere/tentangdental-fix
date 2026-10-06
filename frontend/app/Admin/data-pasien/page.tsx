@@ -5,6 +5,18 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { fetchApi } from '@/utils/api';
+
+type Pasien = {
+  id: string;
+  inisial: string;
+  nama: string;
+  usia: string;
+  telepon: string;
+  kunjungan: string;
+  total: string;
+  status: string;
+};
 
 export default function DataPasienAdmin() {
   const router = useRouter();
@@ -25,16 +37,8 @@ export default function DataPasienAdmin() {
   });
 
   // Daftar Data Pasien Sesuai Figma
-  const [daftarPasien, setDaftarPasien] = useState([
-    { id: 'P-00124', inisial: 'B', nama: 'Budi Santoso', usia: '31 th', telepon: '0812-3456-7890', kunjungan: '16 Sep 2026', total: '12x', status: 'Aktif' },
-    { id: 'P-00123', inisial: 'S', nama: 'Siti Nurhaliza', usia: '27 th', telepon: '0813-2345-6789', kunjungan: '12 Sep 2026', total: '5x', status: 'Aktif' },
-    { id: 'P-00122', inisial: 'R', nama: 'Reza Pratama', usia: '24 th', telepon: '0814-3456-7890', kunjungan: '16 Sep 2026', total: '3x', status: 'Aktif' },
-    { id: 'P-00121', inisial: 'S', nama: 'Sri Wahyuni', usia: '55 th', telepon: '0815-4567-8901', kunjungan: '16 Sep 2026', total: '8x', status: 'Aktif' },
-    { id: 'P-00120', inisial: 'D', nama: 'Dewi Rahayu', usia: '42 th', telepon: '0816-5678-9012', kunjungan: '16 Sep 2026', total: '6x', status: 'Aktif' },
-    { id: 'P-00119', inisial: 'F', nama: 'Farhan Maulana', usia: '35 th', telepon: '0817-6789-0123', kunjungan: '16 Sep 2026', total: '4x', status: 'Aktif' },
-    { id: 'P-00118', inisial: 'R', nama: 'Rina Kartika', usia: '28 th', telepon: '0818-7890-1234', kunjungan: '16 Sep 2026', total: '7x', status: 'Aktif' },
-    { id: 'P-00117', inisial: 'A', nama: 'Agus Setiawan', usia: '45 th', telepon: '0819-8901-2345', kunjungan: '05 Sep 2026', total: '10x', status: 'Aktif' },
-  ]);
+  const [daftarPasien, setDaftarPasien] = useState<Pasien[]>([]);
+  const [loadingPasien, setLoadingPasien] = useState(true);
 
   useEffect(() => {
     const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
@@ -44,6 +48,51 @@ export default function DataPasienAdmin() {
     const savedJabatan = localStorage.getItem('adminJabatan');
     if (savedNama) setNamaAdmin(savedNama);
     if (savedJabatan) setJabatanAdmin(savedJabatan);
+
+    if (!localStorage.getItem('token')) {
+      router.replace('/login');
+      return;
+    }
+
+    const load = async () => {
+      try {
+        const [optJson, visJson] = await Promise.all([
+          fetchApi('/admin/options'),
+          fetchApi('/visits?per_page=100'),
+        ]);
+        const patients = (optJson?.data?.patients ?? []) as { id: number; name: string; phone: string | null }[];
+        const visits = (visJson?.data?.visits?.data ?? []) as {
+          patient_id: number;
+          visit_date: string;
+        }[];
+
+        setDaftarPasien(
+          patients.map((p) => {
+            const kunjunganPasien = visits.filter((v) => v.patient_id === p.id);
+            const terakhir = kunjunganPasien[0]?.visit_date;
+            return {
+              id: `P-${String(p.id).padStart(5, '0')}`,
+              inisial: p.name.charAt(0).toUpperCase(),
+              nama: p.name,
+              usia: '—',
+              telepon: p.phone ?? '—',
+              kunjungan: terakhir
+                ? new Date(terakhir).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+                : '—',
+              total: `${kunjunganPasien.length}x`,
+              status: 'Aktif',
+            };
+          })
+        );
+      } catch (e) {
+        console.error('Gagal memuat pasien', e);
+        alert('Gagal memuat data pasien dari server.');
+      } finally {
+        setLoadingPasien(false);
+      }
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filteredPasien = daftarPasien.filter(p => 
@@ -54,24 +103,8 @@ export default function DataPasienAdmin() {
 
   const handleTambahPasien = (e: React.FormEvent) => {
     e.preventDefault();
-    const idBaru = `P-001${daftarPasien.length + 25}`;
-    const inisialBaru = formPasien.nama.charAt(0).toUpperCase();
-
-    const pasienBaru = {
-      id: idBaru,
-      inisial: inisialBaru,
-      nama: formPasien.nama,
-      usia: `${formPasien.usia} th`,
-      telepon: formPasien.telepon,
-      kunjungan: 'Baru saja',
-      total: '1x',
-      status: formPasien.status,
-    };
-
-    setDaftarPasien([pasienBaru, ...daftarPasien]);
     setIsModalOpen(false);
-    setFormPasien({ nama: '', usia: '', telepon: '', email: '', alamat: '', status: 'Aktif' });
-    alert('Pasien baru berhasil didaftarkan!');
+    alert('Pendaftaran pasien baru belum tersedia di backend. Tambahkan pasien melalui akun registrasi saat backend mendukung fitur ini.');
   };
 
   return (
@@ -350,7 +383,15 @@ export default function DataPasienAdmin() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {filteredPasien.map((p) => (
+                  {loadingPasien ? (
+                    <tr>
+                      <td colSpan={8} className="py-6 text-center text-slate-400">Memuat data pasien…</td>
+                    </tr>
+                  ) : filteredPasien.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="py-6 text-center text-slate-400">Tidak ada pasien ditemukan.</td>
+                    </tr>
+                  ) : filteredPasien.map((p) => (
                     <tr key={p.id} className="hover:bg-slate-50 transition">
                       <td className="py-3.5 font-bold text-[#2EC4B6]">{p.id}</td>
                       <td className="py-3.5 flex items-center gap-2.5">

@@ -227,6 +227,10 @@ export default function ManajemenAntreanAdmin() {
         {/* Isi Halaman */}
         <main className="p-6 space-y-5 overflow-y-auto">
           
+          <div className="px-4 py-3 bg-amber-50 border border-amber-100 text-amber-700 rounded-xl text-[11px] font-semibold">
+            Data contoh — manajemen antrean belum terhubung backend (belum ada endpoint antrean); data tersimpan lokal di browser.
+          </div>
+
           <div className="flex justify-end">
             <button 
               onClick={() => setIsModalOpen(true)}

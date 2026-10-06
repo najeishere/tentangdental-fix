@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { fetchApi } from '@/utils/api';
 
 export default function PengaturanAdmin() {
   const router = useRouter();
@@ -36,6 +37,31 @@ export default function PengaturanAdmin() {
   useEffect(() => {
     const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
     setTanggalHariIni(new Date().toLocaleDateString('id-ID', options));
+
+    const load = async () => {
+      try {
+        const json = await fetchApi('/me');
+        const u = json?.data?.user;
+        if (u) {
+          setProfilData((p) => ({
+            ...p,
+            nama: u.name ?? p.nama,
+            email: u.email ?? p.email,
+            jabatan: localStorage.getItem('adminJabatan') ?? p.jabatan,
+          }));
+          setOriginalProfilData((p) => ({
+            ...p,
+            nama: u.name ?? p.nama,
+            email: u.email ?? p.email,
+            jabatan: localStorage.getItem('adminJabatan') ?? p.jabatan,
+          }));
+        }
+      } catch (e) {
+        console.error('Gagal memuat profil', e);
+      }
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleMulaiEdit = () => {
@@ -51,7 +77,7 @@ export default function PengaturanAdmin() {
     }
     setOriginalProfilData(profilData);
     setIsEditingProfil(false);
-    alert('Profil dan kata sandi berhasil diperbarui!');
+    alert('Profil ditampilkan dari server, tetapi perubahan (termasuk kata sandi) belum dapat disimpan — backend belum menyediakan endpoint ubah profil/sandi akun. Perubahan hanya berlaku di sesi ini.');
   };
 
   const handleBatalEdit = () => {

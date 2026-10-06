@@ -5,6 +5,28 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { fetchApi } from '@/utils/api';
+
+type Option = { id: number; name: string };
+type TindakanOpt = { id: number; name: string; price: number };
+type VisitRow = {
+  id: number;
+  invoice_number: string;
+  visit_date: string;
+  payment_status: string;
+  total: number;
+  complaint?: string | null;
+  patient?: Option | null;
+  doctor?: Option | null;
+  items?: { id: number; tarif_name: string; price: string; quantity: number; total: string }[];
+};
+type FormItem = { tindakan_id: string; quantity: number };
+
+const rupiah = (n: number | string) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(n));
+
+const tgl = (d: string) =>
+  new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
 
 export default function PencatatanTagihanAdmin() {
   const router = useRouter();
@@ -12,29 +34,132 @@ export default function PencatatanTagihanAdmin() {
   const [namaAdmin, setNamaAdmin] = useState('Nadia A.');
   const [jabatanAdmin, setJabatanAdmin] = useState('Admin');
 
-  // State untuk status invoice (Draft / Finalisasi)
-  const [statusInvoice, setStatusInvoice] = useState<'Draft' | 'Finalisasi'>('Draft');
+  const [patients, setPatients] = useState<Option[]>([]);
+  const [doctors, setDoctors] = useState<Option[]>([]);
+  const [tindakans, setTindakans] = useState<TindakanOpt[]>([]);
+  const [visits, setVisits] = useState<VisitRow[]>([]);
+  const [selectedVisit, setSelectedVisit] = useState<VisitRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [form, setForm] = useState({
+    patient_id: '',
+    doctor_id: '',
+    visit_date: new Date().toISOString().slice(0, 10),
+    complaint: '',
+    items: [{ tindakan_id: '', quantity: 1 }] as FormItem[],
+  });
+
+  const loadVisits = async () => {
+    const json = await fetchApi('/visits?per_page=15');
+    setVisits(json?.data?.visits?.data ?? []);
+  };
 
   useEffect(() => {
     const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
-    const todayStr = new Date().toLocaleDateString('id-ID', options);
-    setTanggalHariIni(todayStr);
+    setTanggalHariIni(new Date().toLocaleDateString('id-ID', options));
     const savedNama = localStorage.getItem('adminNama');
     const savedJabatan = localStorage.getItem('adminJabatan');
     if (savedNama) setNamaAdmin(savedNama);
     if (savedJabatan) setJabatanAdmin(savedJabatan);
+
+    if (!localStorage.getItem('token')) {
+      router.replace('/login');
+      return;
+    }
+
+    const load = async () => {
+      try {
+        const [optJson, tinJson] = await Promise.all([
+          fetchApi('/admin/options'),
+          fetchApi('/admin/tindakans?active_only=1&per_page=100'),
+        ]);
+        setPatients(optJson?.data?.patients ?? []);
+        setDoctors(optJson?.data?.doctors ?? []);
+        const rows = (tinJson?.data?.tindakans?.data ?? []) as Record<string, unknown>[];
+        setTindakans(
+          rows.map((t) => ({
+            id: Number(t.id),
+            name: String(t.name ?? ''),
+            price: Number(t.price ?? 0),
+          }))
+        );
+        await loadVisits();
+      } catch (e) {
+        console.error('Gagal memuat data', e);
+        alert('Gagal memuat data dari server.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleFinalisasi = () => {
-    setStatusInvoice('Finalisasi');
-    // Invoice sudah siap, langsung navigasi ke halaman pembayaran
-    router.push('/Admin/pembayaran');
+  const updateItem = (idx: number, patch: Partial<FormItem>) => {
+    setForm((f) => ({
+      ...f,
+      items: f.items.map((it, i) => (i === idx ? { ...it, ...patch } : it)),
+    }));
+  };
+
+  const subtotal = form.items.reduce((sum, it) => {
+    const t = tindakans.find((x) => x.id === Number(it.tindakan_id));
+    return sum + (t ? t.price * it.quantity : 0);
+  }, 0);
+
+  const handleBuatTagihan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const items = form.items.filter((it) => it.tindakan_id);
+    if (items.length === 0) {
+      alert('Pilih minimal satu tindakan.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const json = await fetchApi('/visits', {
+        method: 'POST',
+        body: JSON.stringify({
+          patient_id: Number(form.patient_id),
+          doctor_id: Number(form.doctor_id),
+          visit_date: form.visit_date,
+          complaint: form.complaint || null,
+          items: items.map((it) => ({
+            tindakan_id: Number(it.tindakan_id),
+            quantity: Number(it.quantity),
+          })),
+        }),
+      });
+      await loadVisits();
+      const created = json?.data?.visit;
+      if (created) {
+        setSelectedVisit({
+          ...created,
+          patient: created.patient ?? null,
+          doctor: created.doctor ?? null,
+          items: created.items ?? [],
+        });
+      }
+      setForm({
+        patient_id: '',
+        doctor_id: '',
+        visit_date: new Date().toISOString().slice(0, 10),
+        complaint: '',
+        items: [{ tindakan_id: '', quantity: 1 }],
+      });
+      alert('Invoice berhasil dibuat!');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal membuat tagihan.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleLanjutPembayaran = () => {
-    // Navigasi ke halaman pembayaran sesuai permintaan
     router.push('/Admin/pembayaran');
   };
+
+  const statusLabel = (s: string) => (s === 'paid' ? 'Lunas' : s === 'partial' ? 'Sebagian' : 'Belum Bayar');
 
   return (
     <div className="min-h-screen bg-[#F4F5F7] flex font-sans text-slate-800 w-full relative">
@@ -167,94 +292,237 @@ export default function PencatatanTagihanAdmin() {
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             
-            {/* Sisi Kiri: Daftar Invoice Card */}
-            <div className="lg:col-span-5 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
-              <div className="p-4 border-2 border-[#2EC4B6] bg-teal-50/30 rounded-2xl cursor-pointer space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs font-bold text-[#2EC4B6]">INV-2026-092</span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${statusInvoice === 'Draft' ? 'bg-slate-100 text-slate-500' : 'bg-blue-100 text-blue-600'}`}>
-                    {statusInvoice}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-xs font-bold text-slate-900">Dewi Rahayu</p>
-                  <p className="text-[10px] text-slate-400">16 Sep 2026</p>
-                </div>
-                <p className="text-xs font-bold text-slate-900 pt-1">Rp 378.000</p>
-              </div>
+            {/* Sisi Kiri: Daftar Invoice */}
+            <div className="lg:col-span-5 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-3 max-h-[70vh] overflow-y-auto">
+              {loading ? (
+                <p className="text-xs text-slate-400 p-4 text-center">Memuat invoice…</p>
+              ) : visits.length === 0 ? (
+                <p className="text-xs text-slate-400 p-4 text-center">Belum ada invoice.</p>
+              ) : (
+                visits.map((v) => (
+                  <div
+                    key={v.id}
+                    onClick={() => setSelectedVisit(v)}
+                    className={`p-4 rounded-2xl cursor-pointer space-y-2 border transition ${
+                      selectedVisit?.id === v.id
+                        ? 'border-2 border-[#2EC4B6] bg-teal-50/30'
+                        : 'border border-slate-200 hover:border-[#2EC4B6]/50'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-[#2EC4B6]">{v.invoice_number}</span>
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          v.payment_status === 'paid'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : v.payment_status === 'partial'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        {statusLabel(v.payment_status)}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-900">{v.patient?.name ?? 'Pasien'}</p>
+                      <p className="text-[10px] text-slate-400">{tgl(v.visit_date)} · {v.doctor?.name ?? '—'}</p>
+                    </div>
+                    <p className="text-xs font-bold text-slate-900 pt-1">{rupiah(v.total)}</p>
+                  </div>
+                ))
+              )}
             </div>
 
-            {/* Sisi Kanan: Detail Invoice & Action */}
+            {/* Sisi Kanan: Detail Invoice / Form Tagihan Baru */}
             <div className="lg:col-span-7 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-6">
-              
-              {/* Header Invoice Detail */}
-              <div className="flex justify-between items-start pb-4 border-b border-slate-100">
-                <div>
-                  <h3 className="text-base font-bold text-slate-900">INV-2026-092</h3>
-                  <p className="text-xs text-slate-500">Pasien: Dewi Rahayu · 16 Sep 2026</p>
-                </div>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${statusInvoice === 'Draft' ? 'bg-slate-100 text-slate-500' : 'bg-blue-100 text-blue-600'}`}>
-                  {statusInvoice}
-                </span>
-              </div>
-
-              {/* Rincian Tindakan */}
-              <div className="space-y-4 text-xs">
-                <div>
-                  <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">Jasa Konsultasi / Tindakan</p>
-                  <div className="flex justify-between items-center py-1">
-                    <span className="font-medium text-slate-700">Scaling & Polishing</span>
-                    <span className="font-bold text-[#2EC4B6]">Rp 350.000</span>
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-100">
-                  <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">Biaya BMHP</p>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-slate-700">Polishing Paste (10g)</span>
-                      <span className="font-medium text-slate-900">Rp 25.000</span>
+              {selectedVisit ? (
+                <>
+                  {/* Header Invoice Detail */}
+                  <div className="flex justify-between items-start pb-4 border-b border-slate-100">
+                    <div>
+                      <h3 className="text-base font-bold text-slate-900">{selectedVisit.invoice_number}</h3>
+                      <p className="text-xs text-slate-500">
+                        Pasien: {selectedVisit.patient?.name ?? '—'} · {tgl(selectedVisit.visit_date)}
+                      </p>
+                      {selectedVisit.complaint && (
+                        <p className="text-xs text-slate-400 mt-1">Keluhan: {selectedVisit.complaint}</p>
+                      )}
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="font-medium text-slate-700">Sarung Tangan (2 pasang)</span>
-                      <span className="font-medium text-slate-900">Rp 3.000</span>
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        selectedVisit.payment_status === 'paid'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : selectedVisit.payment_status === 'partial'
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-slate-100 text-slate-500'
+                      }`}
+                    >
+                      {statusLabel(selectedVisit.payment_status)}
+                    </span>
+                  </div>
+
+                  {/* Rincian Tindakan */}
+                  <div className="space-y-4 text-xs">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mb-2">Jasa Konsultasi / Tindakan</p>
+                      {(selectedVisit.items ?? []).length === 0 ? (
+                        <p className="text-slate-400">Tidak ada rincian tindakan.</p>
+                      ) : (
+                        selectedVisit.items!.map((it) => (
+                          <div key={it.id} className="flex justify-between items-center py-1">
+                            <span className="font-medium text-slate-700">{it.tarif_name} {it.quantity > 1 ? `x${it.quantity}` : ''}</span>
+                            <span className="font-bold text-[#2EC4B6]">{rupiah(it.total)}</span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Total Tagihan */}
-              <div className="pt-4 border-t border-slate-200 flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-900">Total Tagihan</span>
-                <span className="text-base font-bold text-[#2EC4B6]">Rp 378.000</span>
-              </div>
+                  {/* Total Tagihan */}
+                  <div className="pt-4 border-t border-slate-200 flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-900">Total Tagihan</span>
+                    <span className="text-base font-bold text-[#2EC4B6]">{rupiah(selectedVisit.total)}</span>
+                  </div>
 
-              {/* Tombol Aksi */}
-              <div className="flex items-center gap-3 pt-2">
-                {statusInvoice === 'Draft' ? (
-                  <button 
-                    onClick={handleFinalisasi}
-                    className="flex-1 py-3 bg-[#2EC4B6] hover:bg-[#259f93] text-white rounded-xl text-xs font-bold transition shadow-sm text-center"
+                  {/* Tombol Aksi */}
+                  <div className="flex items-center gap-3 pt-2">
+                    <button 
+                      onClick={handleLanjutPembayaran}
+                      className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm text-center flex items-center justify-center gap-2"
+                    >
+                      <span></span> Lanjut ke Pembayaran
+                    </button>
+                    <button 
+                      onClick={() => setSelectedVisit(null)}
+                      className="flex-1 py-3 bg-[#2EC4B6] hover:bg-[#259f93] text-white rounded-xl text-xs font-bold transition shadow-sm text-center"
+                    >
+                      + Buat Tagihan Baru
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <form onSubmit={handleBuatTagihan} className="space-y-5 text-xs">
+                  <div className="pb-3 border-b border-slate-100">
+                    <h3 className="text-base font-bold text-slate-900">Buat Tagihan Baru</h3>
+                    <p className="text-xs text-slate-500">Catat kunjungan & generate invoice</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-500 font-semibold mb-1">Pasien</label>
+                      <select
+                        value={form.patient_id}
+                        onChange={(e) => setForm({ ...form, patient_id: e.target.value })}
+                        required
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6] bg-white"
+                      >
+                        <option value="">— Pilih pasien —</option>
+                        {patients.map((p) => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-slate-500 font-semibold mb-1">Dokter</label>
+                      <select
+                        value={form.doctor_id}
+                        onChange={(e) => setForm({ ...form, doctor_id: e.target.value })}
+                        required
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6] bg-white"
+                      >
+                        <option value="">— Pilih dokter —</option>
+                        {doctors.map((d) => (
+                          <option key={d.id} value={d.id}>{d.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-slate-500 font-semibold mb-1">Tanggal Kunjungan</label>
+                      <input
+                        type="date"
+                        value={form.visit_date}
+                        onChange={(e) => setForm({ ...form, visit_date: e.target.value })}
+                        required
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-slate-500 font-semibold mb-1">Keluhan (opsional)</label>
+                      <input
+                        type="text"
+                        placeholder="Contoh: Gigi berlubang"
+                        value={form.complaint}
+                        onChange={(e) => setForm({ ...form, complaint: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-slate-500 font-semibold">Tindakan</label>
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, items: [...form.items, { tindakan_id: '', quantity: 1 }] })}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition"
+                      >
+                        + Tambah Baris
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      {form.items.map((it, idx) => (
+                        <div key={idx} className="flex gap-2">
+                          <select
+                            value={it.tindakan_id}
+                            onChange={(e) => updateItem(idx, { tindakan_id: e.target.value })}
+                            required
+                            className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6] bg-white"
+                          >
+                            <option value="">— Pilih tindakan —</option>
+                            {tindakans.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name} — {rupiah(t.price)}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="number"
+                            min={1}
+                            value={it.quantity}
+                            onChange={(e) => updateItem(idx, { quantity: Math.max(1, Number(e.target.value) || 1) })}
+                            className="w-16 px-2 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6] text-center"
+                          />
+                          {form.items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => setForm({ ...form, items: form.items.filter((_, i) => i !== idx) })}
+                              className="px-3 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl font-bold transition"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-200 flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-900">Total Tagihan</span>
+                    <span className="text-base font-bold text-[#2EC4B6]">{rupiah(subtotal)}</span>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full py-3 bg-[#2EC4B6] hover:bg-[#259f93] disabled:opacity-60 text-white rounded-xl text-xs font-bold transition shadow-sm"
                   >
-                    Finalisasi & Generate Invoice
+                    {submitting ? 'Menyimpan…' : 'Buat & Terbitkan Invoice'}
                   </button>
-                ) : (
-                  <button 
-                    onClick={handleLanjutPembayaran}
-                    className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-sm text-center flex items-center justify-center gap-2"
-                  >
-                    <span></span> Lanjut ke Pembayaran
-                  </button>
-                )}
-
-                <button 
-                  onClick={() => alert('Print Preview Invoice')}
-                  className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition flex items-center gap-2"
-                >
-                  <span>👁</span> Print Preview
-                </button>
-              </div>
-
+                </form>
+              )}
             </div>
 
           </div>

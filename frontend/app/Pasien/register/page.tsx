@@ -42,7 +42,7 @@ export default function RegisterPasien() {
       alert('NIK harus pas 16 digit!');
       return;
     }
-    router.push('/Pasien/dashboard');
+    alert('Pendaftaran pasien belum tersedia — backend belum memiliki endpoint register. Silakan hubungi klinik untuk mendaftar.');
   };
 
   return (

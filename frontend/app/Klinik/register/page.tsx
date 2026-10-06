@@ -33,7 +33,7 @@ export default function RegisterKlinik() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Pendaftaran Tim Klinik berhasil!');
+    alert('Pendaftaran Tim Klinik belum tersedia — backend belum memiliki endpoint register. Silakan hubungi administrator untuk membuat akun.');
     router.push('/Klinik/dashboard');
   };
 

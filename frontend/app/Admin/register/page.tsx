@@ -33,7 +33,7 @@ export default function RegisterAdmin() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    alert('Pendaftaran Admin berhasil!');
+    alert('Pendaftaran admin belum tersedia — backend belum memiliki endpoint register. Silakan hubungi administrator untuk membuat akun.');
     router.push('/Admin/dashboard');
   };
 

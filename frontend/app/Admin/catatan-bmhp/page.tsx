@@ -1,9 +1,20 @@
 // app/Admin/bmhp/page.tsx
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { fetchApi } from '@/utils/api';
+
+type BmhpItem = {
+  realId: number;
+  id: string;
+  name: string;
+  desc: string;
+  price: number;
+  stock: number;
+  qty: number;
+};
 
 export default function CatatanBmhpPage() {
   const router = useRouter();
@@ -16,21 +27,49 @@ export default function CatatanBmhpPage() {
     year: 'numeric' 
   });
 
-  // State daftar item BMHP dengan kuantitas masing-masing
-  const [items, setItems] = useState([
-    { id: 'B001', name: 'Kapas Pellet', desc: 'Stok: 500 buah · Rp 200/buah', price: 200, qty: 1 },
-    { id: 'B002', name: 'Komposit Nanofill (per syringe)', desc: 'Stok: 12 unit · Rp 125.000/unit', price: 125000, qty: 1 },
-    { id: 'B003', name: 'Bonding Agent (per ml)', desc: 'Stok: 30 ml · Rp 15.000/ml', price: 15000, qty: 1 },
-    { id: 'B004', name: 'Anastesi Lidocaine 2%', desc: 'Stok: 45 ampul · Rp 8.500/ampul', price: 8500, qty: 1 },
-    { id: 'B005', name: 'Polishing Paste', desc: 'Stok: 200 gram · Rp 2.500/gram', price: 2500, qty: 1 },
-    { id: 'B006', name: 'Sarung Tangan Latex S', desc: 'Stok: 80 pasang · Rp 1.500/pasang', price: 1500, qty: 1 },
-  ]);
+  const [items, setItems] = useState<BmhpItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  // Fungsi mengubah kuantitas (tambah / kurang)
+  useEffect(() => {
+    if (!localStorage.getItem('token')) {
+      router.replace('/login');
+      return;
+    }
+    const load = async () => {
+      try {
+        const json = await fetchApi('/admin/inventory?per_page=100');
+        const rows = (json?.data?.items?.data ?? []) as Record<string, unknown>[];
+        setItems(
+          rows.map((r) => {
+            const stock = Number(r.stock ?? 0);
+            const cost = Number(r.unit_cost ?? 0);
+            return {
+              realId: Number(r.id),
+              id: String(r.code ?? ''),
+              name: String(r.name ?? ''),
+              desc: `Stok: ${stock} ${r.unit ?? ''} · Rp ${cost.toLocaleString('id-ID')}/${r.unit ?? ''}`,
+              price: cost,
+              stock,
+              qty: 0,
+            };
+          })
+        );
+      } catch (e) {
+        console.error('Gagal memuat BMHP', e);
+        alert('Gagal memuat data BMHP dari server.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [router]);
+
+  // Fungsi mengubah kuantitas (tambah / kurang), dibatasi stok tersedia
   const handleUpdateQty = (id: string, delta: number) => {
     setItems(prev => prev.map(item => {
       if (item.id === id) {
-        const newQty = Math.max(0, item.qty + delta);
+        const newQty = Math.max(0, Math.min(item.stock, item.qty + delta));
         return { ...item, qty: newQty };
       }
       return item;
@@ -40,10 +79,31 @@ export default function CatatanBmhpPage() {
   // Hitung total harga keseluruhan BMHP sesi ini
   const totalBmhp = items.reduce((sum, item) => sum + (item.price * item.qty), 0);
 
-  const handleSimpanBilling = () => {
-    alert(`Berhasil! Total Rp ${totalBmhp.toLocaleString('id-ID')} ditambahkan ke billing.`);
-    // Mengarahkan ke halaman Pencatatan Tagihan
-    router.push('/Admin/pencatatan-tagihan');
+  const handleSimpanBilling = async () => {
+    const dipakai = items.filter((it) => it.qty > 0);
+    if (dipakai.length === 0) {
+      alert('Tentukan jumlah pemakaian minimal satu bahan.');
+      return;
+    }
+    setSaving(true);
+    try {
+      for (const it of dipakai) {
+        await fetchApi('/admin/inventory/stock-out', {
+          method: 'POST',
+          body: JSON.stringify({
+            inventory_item_id: it.realId,
+            quantity: it.qty,
+            note: 'Pemakaian sesi',
+          }),
+        });
+      }
+      alert(`Berhasil! Total Rp ${totalBmhp.toLocaleString('id-ID')} dicatat keluar dari stok.`);
+      router.push('/Admin/pencatatan-tagihan');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal mencatat pemakaian BMHP.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -189,13 +249,17 @@ export default function CatatanBmhpPage() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-xs font-bold text-slate-900">Sesi: Dewi Rahayu — A-040</h3>
-                <p className="text-[11px] text-slate-500">Tindakan: Gigi sensitif — 16 Sep 2026</p>
+                <h3 className="text-xs font-bold text-slate-900">Pemakaian BMHP Hari Ini</h3>
+                <p className="text-[11px] text-slate-500">Pilih bahan yang dipakai lalu simpan ke stok — {formattedHeaderDate}</p>
               </div>
             </div>
 
             <div className="divide-y divide-slate-100 border border-slate-100 rounded-2xl overflow-hidden">
-              {items.map((item) => (
+              {loading ? (
+                <div className="p-6 text-center text-xs text-slate-400">Memuat data bahan…</div>
+              ) : items.length === 0 ? (
+                <div className="p-6 text-center text-xs text-slate-400">Belum ada data bahan.</div>
+              ) : items.map((item) => (
                 <div key={item.id} className="p-4 flex items-center justify-between hover:bg-slate-50/50 transition">
                   <div className="flex items-center gap-4">
                     <span className="px-2.5 py-1 bg-slate-100 text-slate-600 font-bold text-[10px] rounded-lg">
@@ -242,9 +306,10 @@ export default function CatatanBmhpPage() {
 
               <button 
                 onClick={handleSimpanBilling}
-                className="px-6 py-3 bg-[#2EC4B6] hover:bg-[#259f93] text-white rounded-xl text-xs font-bold transition shadow-sm"
+                disabled={saving}
+                className="px-6 py-3 bg-[#2EC4B6] hover:bg-[#259f93] disabled:opacity-60 text-white rounded-xl text-xs font-bold transition shadow-sm"
               >
-                Simpan & Masukkan ke Billing
+                {saving ? 'Menyimpan…' : 'Simpan & Catat Keluar Stok'}
               </button>
             </div>
 

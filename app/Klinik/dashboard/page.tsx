@@ -44,7 +44,7 @@ export default function DashboardTimKlinik() {
             <div>
               <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-3 mb-2">Overview</p>
               <div className="px-3 py-2.5 bg-[#2EC4B6] text-white font-medium rounded-xl flex items-center gap-3 shadow-sm cursor-pointer">
-                Dashboard[cite: 3]
+                Dashboard
               </div>
             </div>
 

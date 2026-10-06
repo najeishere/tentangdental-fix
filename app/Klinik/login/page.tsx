@@ -5,17 +5,39 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
+import { fetchApi } from '@/utils/api';
 
 export default function LoginKlinik() {
   const router = useRouter();
-  const [nama, setNama] = useState('drg. Sari Dewi');
-  const [password, setPassword] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simpan data login sementara ke localStorage
-    localStorage.setItem('klinikNama', nama);
-    router.push('/Klinik/dashboard');
+    setLoading(true);
+    setErrorMsg('');
+
+    try {
+      // Mengirim data login ke API backend Laravel
+      const data = await fetchApi('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+
+      // Menyimpan token dan informasi user dari database
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('klinikNama', data.user.name);
+      localStorage.setItem('klinikRole', data.user.role || 'Klinik');
+
+      // Arahkan ke dashboard klinik
+      router.push('/Klinik/dashboard');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Login gagal, periksa kembali email dan kata sandi Anda.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -54,16 +76,22 @@ export default function LoginKlinik() {
             <p className="text-xs text-slate-500">Masuk ke akun Anda</p>
           </div>
 
+          {errorMsg && (
+            <div className="p-3 bg-rose-50 border border-rose-100 text-rose-600 text-xs rounded-xl">
+              {errorMsg}
+            </div>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-4 text-xs">
             <div>
-              <label className="block text-slate-500 font-semibold mb-1">Nama</label>
+              <label className="block text-slate-500 font-semibold mb-1">Email</label>
               <input 
-                type="text" 
-                value={nama} 
-                onChange={(e) => setNama(e.target.value)} 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
                 required
                 className="w-full px-4 py-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6] text-sm text-slate-800" 
-                placeholder="Nama Lengkap" 
+                placeholder="email@tentangdental.com" 
               />
             </div>
 
@@ -81,9 +109,10 @@ export default function LoginKlinik() {
 
             <button 
               type="submit" 
-              className="w-full py-3 bg-[#2EC4B6] hover:bg-[#259f93] text-white rounded-xl text-xs font-bold transition shadow-sm"
+              disabled={loading}
+              className="w-full py-3 bg-[#2EC4B6] hover:bg-[#259f93] text-white rounded-xl text-xs font-bold transition shadow-sm disabled:opacity-50"
             >
-              Masuk
+              {loading ? 'Memproses...' : 'Masuk'}
             </button>
           </form>
 

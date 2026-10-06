@@ -1,0 +1,16 @@
+.git
+.env
+.env.backup
+.env.production
+/vendor
+/node_modules
+/storage/logs/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/public/build
+/.phpunit.cache
+/tests
+/docs
+*.md
+.DS_Store

@@ -113,6 +113,12 @@ class ReportsController extends Controller
             ->whereBetween('paid_at', [$from, $to])
             ->sum('amount');
 
+        $transferIn = (float) Payment::query()
+            ->where('status', Payment::STATUS_CONFIRMED)
+            ->where('method', Payment::METHOD_TRANSFER)
+            ->whereBetween('paid_at', [$from, $to])
+            ->sum('amount');
+
         $cashOut = (float) LedgerEntry::query()
             ->where('type', LedgerEntry::TYPE_EXPENSE)
             ->whereBetween('date', [$from, $to])
@@ -130,13 +136,14 @@ class ReportsController extends Controller
             'inflow' => [
                 'cash' => round($cashIn, 2),
                 'qris' => round($qrisIn, 2),
-                'total_inflow' => round($cashIn + $qrisIn, 2),
+                'transfer' => round($transferIn, 2),
+                'total_inflow' => round($cashIn + $qrisIn + $transferIn, 2),
             ],
             'outflow' => [
                 'operational_expenses' => round($cashOut, 2),
                 'total_outflow' => round($cashOut, 2),
             ],
-            'net_cash_flow' => round($cashIn + $qrisIn - $cashOut, 2),
+            'net_cash_flow' => round($cashIn + $qrisIn + $transferIn - $cashOut, 2),
         ]]);
     }
 

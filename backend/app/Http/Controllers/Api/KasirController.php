@@ -246,7 +246,7 @@ class KasirController extends Controller
     {
         $request->validate([
             'visit_id' => ['required', 'exists:visits,id'],
-            'method' => ['required', 'in:cash,qris'],
+            'method' => ['required', 'in:cash,qris,transfer'],
             'amount' => ['required', 'numeric', 'gt:0'],
             'paid_by' => ['nullable', 'string', 'max:50'],
         ]);
@@ -398,7 +398,7 @@ class KasirController extends Controller
     {
         $request->validate([
             'amount' => ['required', 'numeric', 'gt:0'],
-            'method' => ['required', 'in:cash,qris'],
+            'method' => ['required', 'in:cash,qris,transfer'],
         ]);
 
         $remaining = (float) $receivable->remaining;

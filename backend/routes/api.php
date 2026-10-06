@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\KasirController;
+use App\Http\Controllers\Api\LabShipmentController;
 use App\Http\Controllers\Api\MasterController;
 use App\Http\Controllers\Api\ReportsController;
 use Illuminate\Support\Facades\Route;
@@ -89,5 +90,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('reports/payrolls', [ReportsController::class, 'payrolls']);
 
         Route::put('clinic/qris', [ClinicController::class, 'updateQris']);
+
+        // Pengiriman lab (vendor)
+        Route::get('lab-shipments', [LabShipmentController::class, 'index']);
+        Route::post('lab-shipments', [LabShipmentController::class, 'store']);
+        Route::put('lab-shipments/{labShipment}', [LabShipmentController::class, 'update']);
+        Route::delete('lab-shipments/{labShipment}', [LabShipmentController::class, 'destroy']);
     });
 });

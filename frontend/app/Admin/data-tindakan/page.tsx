@@ -5,6 +5,30 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { fetchApi } from '@/utils/api';
+
+type TindakanItem = {
+  id: number;
+  kode: string;
+  nama: string;
+  kategori: string;
+  tarif: string;
+  komisi: string;
+  aktif: boolean;
+};
+
+const rupiah = (n: number | string) =>
+  new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(Number(n));
+
+const mapTindakan = (t: Record<string, unknown>): TindakanItem => ({
+  id: Number(t.id),
+  kode: `T${String(Number(t.id)).padStart(3, '0')}`,
+  nama: String(t.name ?? ''),
+  kategori: String(t.description ?? 'Umum') || 'Umum',
+  tarif: String(Number(t.price ?? 0)),
+  komisi: String(Number(t.komisi_persen ?? 0)),
+  aktif: Boolean(t.is_active),
+});
 
 export default function DataTindakanAdmin() {
   const router = useRouter();
@@ -12,51 +36,35 @@ export default function DataTindakanAdmin() {
   const [namaAdmin, setNamaAdmin] = useState('Nadia A.');
   const [jabatanAdmin, setJabatanAdmin] = useState('Admin');
 
-  // State Tab Aktif
-  const [activeTab, setActiveTab] = useState<'Tindakan Langsung' | 'Tindakan + Lab'>('Tindakan Langsung');
-
   // State Modal Tambah
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [formTambah, setFormTambah] = useState({
     nama: '',
     kategori: '',
     tarif: '',
-    durasi: '',
+    komisi: '50',
     aktif: true,
   });
 
   // State Modal Edit
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [selectedTindakan, setSelectedTindakan] = useState<{
-    kode: string;
-    nama: string;
-    kategori: string;
-    tarif: string;
-    durasi: string;
-    aktif: boolean;
-  } | null>(null);
+  const [selectedTindakan, setSelectedTindakan] = useState<TindakanItem | null>(null);
 
-  // Data Tindakan Langsung Sesuai Figma
-  const [tindakanLangsung, setTindakanLangsung] = useState([
-    { kode: 'T001', nama: 'Scaling & Polishing', kategori: 'Preventif', tarif: 'Rp 350.000', durasi: '45 mnt', aktif: true },
-    { kode: 'T002', nama: 'Tambal Gigi Komposit', kategori: 'Restoratif', tarif: 'Rp 280.000', durasi: '60 mnt', aktif: true },
-    { kode: 'T003', nama: 'Pencabutan Gigi Susu', kategori: 'Bedah Minor', tarif: 'Rp 150.000', durasi: '30 mnt', aktif: true },
-    { kode: 'T004', nama: 'Pencabutan Gigi Dewasa', kategori: 'Bedah Minor', tarif: 'Rp 300.000', durasi: '45 mnt', aktif: true },
-    { kode: 'T005', nama: 'Perawatan Saluran Akar', kategori: 'Endodontik', tarif: 'Rp 750.000', durasi: '90 mnt', aktif: true },
-    { kode: 'T006', nama: 'Konsultasi', kategori: 'Umum', tarif: 'Rp 100.000', durasi: '15 mnt', aktif: true },
-    { kode: 'T007', nama: 'Pembersihan Karang Gigi', kategori: 'Preventif', tarif: 'Rp 200.000', durasi: '30 mnt', aktif: true },
-    { kode: 'T008', nama: 'Bleaching Gigi', kategori: 'Estetik', tarif: 'Rp 1.500.000', durasi: '90 mnt', aktif: true },
-  ]);
+  const [tindakanList, setTindakanList] = useState<TindakanItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Data Tindakan + Lab Sesuai Figma
-  const [tindakanLab, setTindakanLab] = useState([
-    { kode: 'L001', nama: 'Crown Zirconia', kategori: 'Prostodontik', tarif: 'Rp 3.500.000', durasi: '2 minggu', aktif: true },
-    { kode: 'L002', nama: 'Behel Metal', kategori: 'Ortodontik', tarif: 'Rp 5.500.000', durasi: 'Berlanjut', aktif: true },
-    { kode: 'L003', nama: 'Behel Ceramic', kategori: 'Ortodontik', tarif: 'Rp 7.500.000', durasi: 'Berlanjut', aktif: true },
-    { kode: 'L004', nama: 'Implan Gigi (per unit)', kategori: 'Implantologi', tarif: 'Rp 12.000.000', durasi: '3 bulan', aktif: true },
-    { kode: 'L005', nama: 'Gigi Tiruan Sebagian (GTS)', kategori: 'Prostodontik', tarif: 'Rp 2.800.000', durasi: '1 minggu', aktif: true },
-    { kode: 'L006', nama: 'Veneer Porselen', kategori: 'Estetik', tarif: 'Rp 3.000.000', durasi: '1 minggu', aktif: true },
-  ]);
+  const loadTindakan = async () => {
+    try {
+      const json = await fetchApi('/admin/tindakans?per_page=100');
+      const rows = (json?.data?.tindakans?.data ?? []) as Record<string, unknown>[];
+      setTindakanList(rows.map(mapTindakan));
+    } catch (e) {
+      console.error('Gagal memuat tindakan', e);
+      alert('Gagal memuat data tindakan dari server.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
@@ -66,52 +74,70 @@ export default function DataTindakanAdmin() {
     const savedJabatan = localStorage.getItem('adminJabatan');
     if (savedNama) setNamaAdmin(savedNama);
     if (savedJabatan) setJabatanAdmin(savedJabatan);
+
+    if (!localStorage.getItem('token')) {
+      router.replace('/login');
+      return;
+    }
+
+    loadTindakan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleTambahSubmit = (e: React.FormEvent) => {
+  const handleTambahSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newKode = activeTab === 'Tindakan Langsung' 
-      ? `T00${tindakanLangsung.length + 1}` 
-      : `L00${tindakanLab.length + 1}`;
-
-    const formattedTarif = `Rp ${Number(formTambah.tarif).toLocaleString('id-ID')}`;
-
-    const newItem = {
-      kode: newKode,
-      nama: formTambah.nama,
-      kategori: formTambah.kategori || 'Umum',
-      tarif: formattedTarif,
-      durasi: formTambah.durasi,
-      aktif: formTambah.aktif,
-    };
-
-    if (activeTab === 'Tindakan Langsung') {
-      setTindakanLangsung([...tindakanLangsung, newItem]);
-    } else {
-      setTindakanLab([...tindakanLab, newItem]);
+    try {
+      await fetchApi('/admin/tindakans', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: formTambah.nama,
+          description: formTambah.kategori || 'Umum',
+          price: Number(formTambah.tarif),
+          komisi_persen: Number(formTambah.komisi || 50),
+          is_active: formTambah.aktif,
+        }),
+      });
+      setIsAddModalOpen(false);
+      setFormTambah({ nama: '', kategori: '', tarif: '', komisi: '50', aktif: true });
+      await loadTindakan();
+      alert('Tindakan baru berhasil ditambahkan!');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal menambahkan tindakan.');
     }
-
-    setIsAddModalOpen(false);
-    setFormTambah({ nama: '', kategori: '', tarif: '', durasi: '', aktif: true });
-    alert('Tindakan baru berhasil ditambahkan!');
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTindakan) return;
-
-    if (activeTab === 'Tindakan Langsung') {
-      setTindakanLangsung(tindakanLangsung.map(item => item.kode === selectedTindakan.kode ? selectedTindakan : item));
-    } else {
-      setTindakanLab(tindakanLab.map(item => item.kode === selectedTindakan.kode ? selectedTindakan : item));
+    try {
+      await fetchApi(`/admin/tindakans/${selectedTindakan.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: selectedTindakan.nama,
+          description: selectedTindakan.kategori || 'Umum',
+          price: Number(selectedTindakan.tarif),
+          komisi_persen: Number(selectedTindakan.komisi || 0),
+          is_active: selectedTindakan.aktif,
+        }),
+      });
+      setIsEditModalOpen(false);
+      setSelectedTindakan(null);
+      await loadTindakan();
+      alert('Perubahan tindakan berhasil disimpan!');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal menyimpan perubahan.');
     }
-
-    setIsEditModalOpen(false);
-    setSelectedTindakan(null);
-    alert('Perubahan tindakan berhasil disimpan!');
   };
 
-  const currentList = activeTab === 'Tindakan Langsung' ? tindakanLangsung : tindakanLab;
+  const handleHapus = async (item: TindakanItem) => {
+    if (!confirm(`Hapus tindakan "${item.nama}"?`)) return;
+    try {
+      await fetchApi(`/admin/tindakans/${item.id}`, { method: 'DELETE' });
+      await loadTindakan();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal menghapus tindakan.');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F4F5F7] flex font-sans text-slate-800 w-full relative">
@@ -154,8 +180,8 @@ export default function DataTindakanAdmin() {
                   Pembayaran
                 </Link>
                 {[
-                  { name: 'Pengiriman Lab', path: '#', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-                  { name: 'Catatan BMHP', path: '#', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' }
+                  { name: 'Pengiriman Lab', path: '/Admin/pengiriman-lab', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
+                  { name: 'Catatan BMHP', path: '/Admin/catatan-bmhp', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' }
                 ].map((menu, i) => (
                   <Link key={i} href={menu.path} className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
                     <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={menu.icon}/></svg>
@@ -244,19 +270,9 @@ export default function DataTindakanAdmin() {
         <main className="p-6 space-y-6 overflow-y-auto">
           
           <div className="flex justify-between items-center">
-            {/* TAB SWITCHER */}
-            <div className="bg-white p-1 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-1 text-xs font-bold">
-              {(['Tindakan Langsung', 'Tindakan + Lab'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-5 py-2 rounded-xl transition ${
-                    activeTab === tab ? 'bg-slate-100 text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  {tab}
-                </button>
-              ))}
+            <div className="text-xs font-bold text-slate-500">
+              Daftar Tindakan
+              <span className="ml-2 font-medium text-slate-400">({tindakanList.length} layanan)</span>
             </div>
 
             <button 
@@ -274,7 +290,7 @@ export default function DataTindakanAdmin() {
                 <div className="flex justify-between items-center pb-3 border-b border-slate-100">
                   <div>
                     <h3 className="text-sm font-bold text-slate-900">Tambah Tindakan</h3>
-                    <p className="text-[11px] text-slate-400">{activeTab}</p>
+                    <p className="text-[11px] text-slate-400">Katalog layanan klinik</p>
                   </div>
                   <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
                 </div>
@@ -321,12 +337,15 @@ export default function DataTindakanAdmin() {
                   </div>
 
                   <div>
-                    <label className="block text-slate-500 font-semibold mb-1">Durasi Estimasi</label>
+                    <label className="block text-slate-500 font-semibold mb-1">Komisi Dokter (%)</label>
                     <input 
                       type="text" 
-                      placeholder="Contoh: 45 mnt / 2 minggu" 
-                      value={formTambah.durasi}
-                      onChange={(e) => setFormTambah({...formTambah, durasi: e.target.value})}
+                      placeholder="Contoh: 50" 
+                      value={formTambah.komisi}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/\D/g, '');
+                        setFormTambah({...formTambah, komisi: val});
+                      }}
                       required
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6]"
                     />
@@ -392,11 +411,11 @@ export default function DataTindakanAdmin() {
                       />
                     </div>
                     <div>
-                      <label className="block text-slate-500 font-semibold mb-1">Tarif (Teks / Format Rupiah)</label>
+                      <label className="block text-slate-500 font-semibold mb-1">Tarif (Rp)</label>
                       <input 
                         type="text" 
                         value={selectedTindakan.tarif}
-                        onChange={(e) => setSelectedTindakan({...selectedTindakan, tarif: e.target.value})}
+                        onChange={(e) => setSelectedTindakan({...selectedTindakan, tarif: e.target.value.replace(/\D/g, '')})}
                         required
                         className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6]"
                       />
@@ -404,11 +423,11 @@ export default function DataTindakanAdmin() {
                   </div>
 
                   <div>
-                    <label className="block text-slate-500 font-semibold mb-1">Durasi Estimasi</label>
+                    <label className="block text-slate-500 font-semibold mb-1">Komisi Dokter (%)</label>
                     <input 
                       type="text" 
-                      value={selectedTindakan.durasi}
-                      onChange={(e) => setSelectedTindakan({...selectedTindakan, durasi: e.target.value})}
+                      value={selectedTindakan.komisi}
+                      onChange={(e) => setSelectedTindakan({...selectedTindakan, komisi: e.target.value.replace(/\D/g, '')})}
                       required
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6]"
                     />
@@ -448,14 +467,22 @@ export default function DataTindakanAdmin() {
                     <th className="pb-3 font-semibold">Nama Tindakan</th>
                     <th className="pb-3 font-semibold">Kategori</th>
                     <th className="pb-3 font-semibold">Tarif</th>
-                    <th className="pb-3 font-semibold">Durasi Est.</th>
+                    <th className="pb-3 font-semibold">Komisi</th>
                     <th className="pb-3 font-semibold">Status</th>
-                    <th className="pb-3 font-semibold text-right">Edit</th>
+                    <th className="pb-3 font-semibold text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {currentList.map((item) => (
-                    <tr key={item.kode} className="hover:bg-slate-50 transition">
+                  {loading ? (
+                    <tr>
+                      <td colSpan={7} className="py-6 text-center text-slate-400">Memuat data tindakan…</td>
+                    </tr>
+                  ) : tindakanList.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="py-6 text-center text-slate-400">Belum ada tindakan.</td>
+                    </tr>
+                  ) : tindakanList.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50 transition">
                       <td className="py-3.5 font-bold text-[#2EC4B6]">{item.kode}</td>
                       <td className="py-3.5 font-bold text-slate-900">{item.nama}</td>
                       <td className="py-3.5">
@@ -463,8 +490,8 @@ export default function DataTindakanAdmin() {
                           {item.kategori}
                         </span>
                       </td>
-                      <td className="py-3.5 font-bold text-[#2EC4B6]">{item.tarif}</td>
-                      <td className="py-3.5 text-slate-600">{item.durasi}</td>
+                      <td className="py-3.5 font-bold text-[#2EC4B6]">{rupiah(item.tarif)}</td>
+                      <td className="py-3.5 text-slate-600">{item.komisi}%</td>
                       <td className="py-3.5">
                         <span className="px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full font-bold text-[10px]">
                           {item.aktif ? 'Aktif' : 'Non-Aktif'}
@@ -479,6 +506,12 @@ export default function DataTindakanAdmin() {
                           className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition"
                         >
                           Edit
+                        </button>
+                        <button 
+                          onClick={() => handleHapus(item)}
+                          className="ml-2 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl font-bold transition"
+                        >
+                          Hapus
                         </button>
                       </td>
                     </tr>

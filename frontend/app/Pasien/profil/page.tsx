@@ -80,9 +80,9 @@ export default function ProfilPasien() {
             <NavItem label="Dashboard" href="/Pasien/dashboard" />
             
             <p className="text-white/30 text-xs font-semibold px-3 pt-6 pb-1 tracking-wider">LAYANAN</p>
-            <NavItem label="Antrean Saya" href="#" />
-            <NavItem label="Riwayat Kunjungan" href="#" />
-            <NavItem label="Tagihan & Invoice" href="#" />
+            <NavItem label="Tagihan & Invoice" href="/Pasien/dashboard" />
+            <NavItem label="Riwayat Kunjungan" href="/Pasien/dashboard" />
+            <NavItem label="Tagihan & Invoice" href="/Pasien/dashboard" />
           </div>
         </div>
 

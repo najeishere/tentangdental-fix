@@ -26,11 +26,31 @@ type DashboardStats = {
   recent_visits: RecentVisit[];
 };
 
+type DoctorVisit = {
+  id: number;
+  invoice_number: string;
+  visit_date: string;
+  total: number;
+  payment_status: string;
+  patient?: { name: string } | null;
+};
+
+type DoctorStats = {
+  visits_handled: number;
+  patients_handled: number;
+  total_commission: number;
+  pending_commission: number;
+  monthly_commission: number;
+};
+
 export default function DashboardTimKlinik() {
   const router = useRouter();
   const [namaDokter, setNamaDokter] = useState('drg. Sari Dewi');
   const [tanggalHariIni, setTanggalHariIni] = useState('');
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [isDoctor, setIsDoctor] = useState(false);
+  const [doctorStats, setDoctorStats] = useState<DoctorStats | null>(null);
+  const [doctorVisits, setDoctorVisits] = useState<DoctorVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -49,28 +69,52 @@ export default function DashboardTimKlinik() {
 
     const token = localStorage.getItem('token');
     if (!token) {
-      router.replace('/Klinik/login');
+      router.replace('/login');
       return;
     }
+
+    const authHeaders = { Authorization: `Bearer ${token}`, Accept: 'application/json' };
 
     const load = async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/dashboard`, {
-          headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+          headers: authHeaders,
         });
         if (res.status === 401) {
-          router.replace('/Klinik/login');
+          router.replace('/login');
           return;
         }
         const json = await res.json();
         const d = json?.data ?? {};
-        setStats({
-          visits_today: d.daily?.visits_today ?? 0,
-          visits_this_month: d.visits_this_month ?? 0,
-          open_receivables: d.open_receivables ?? 0,
-          patients: d.patients ?? 0,
-          recent_visits: d.recent_visits ?? [],
-        });
+
+        if (d.doctor) {
+          // Shape dokter: komisi & kunjungan yang ditangani sendiri
+          setIsDoctor(true);
+          setDoctorStats({
+            visits_handled: d.totals?.visits_handled ?? 0,
+            patients_handled: d.totals?.patients_handled ?? 0,
+            total_commission: d.totals?.total_commission ?? 0,
+            pending_commission: d.totals?.pending_commission ?? 0,
+            monthly_commission: d.monthly_commission ?? 0,
+          });
+
+          const tRes = await fetch(`${API_BASE_URL}/doctor/treatments?per_page=5`, {
+            headers: authHeaders,
+          });
+          if (tRes.ok) {
+            const tJson = await tRes.json();
+            setDoctorVisits(tJson?.data?.visits?.data ?? []);
+          }
+        } else {
+          // Shape admin/kasir
+          setStats({
+            visits_today: d.daily?.visits_today ?? 0,
+            visits_this_month: d.visits_this_month ?? 0,
+            open_receivables: d.open_receivables ?? 0,
+            patients: d.patients ?? 0,
+            recent_visits: d.recent_visits ?? [],
+          });
+        }
       } catch {
         setError('Gagal memuat data dashboard.');
       } finally {
@@ -96,7 +140,7 @@ export default function DashboardTimKlinik() {
     localStorage.removeItem('token');
     localStorage.removeItem('klinikNama');
     localStorage.removeItem('klinikRole');
-    router.push('/Klinik/login');
+    router.push('/login');
   };
 
   const formatRupiah = (n: number) =>
@@ -199,34 +243,69 @@ export default function DashboardTimKlinik() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Kunjungan Hari Ini</span>
-              <div>
-                <h3 className="text-2xl font-extrabold text-slate-900 mb-1">{loading ? '…' : stats?.visits_today ?? 0}</h3>
-                <p className="text-xs font-semibold text-[#2EC4B6]">Hari ini</p>
-              </div>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Kunjungan Bulan Ini</span>
-              <div>
-                <h3 className="text-2xl font-extrabold text-slate-900 mb-1">{loading ? '…' : stats?.visits_this_month ?? 0}</h3>
-                <p className="text-xs font-semibold text-emerald-600">Bulan berjalan</p>
-              </div>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Piutang Terbuka</span>
-              <div>
-                <h3 className="text-2xl font-extrabold text-slate-900 mb-1">{loading ? '…' : formatRupiah(stats?.open_receivables ?? 0)}</h3>
-                <p className="text-xs font-semibold text-amber-500">Belum tertagih</p>
-              </div>
-            </div>
-            <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Total Pasien</span>
-              <div>
-                <h3 className="text-2xl font-extrabold text-slate-900 mb-1">{loading ? '…' : stats?.patients ?? 0}</h3>
-                <p className="text-xs font-semibold text-blue-500">Terdaftar</p>
-              </div>
-            </div>
+            {isDoctor ? (
+              <>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Kunjungan Ditangani</span>
+                  <div>
+                    <h3 className="text-2xl font-extrabold text-slate-900 mb-1">{loading ? '…' : doctorStats?.visits_handled ?? 0}</h3>
+                    <p className="text-xs font-semibold text-[#2EC4B6]">Total</p>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Pasien Ditangani</span>
+                  <div>
+                    <h3 className="text-2xl font-extrabold text-slate-900 mb-1">{loading ? '…' : doctorStats?.patients_handled ?? 0}</h3>
+                    <p className="text-xs font-semibold text-emerald-600">Unik</p>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Komisi Bulan Ini</span>
+                  <div>
+                    <h3 className="text-2xl font-extrabold text-slate-900 mb-1">{loading ? '…' : formatRupiah(doctorStats?.monthly_commission ?? 0)}</h3>
+                    <p className="text-xs font-semibold text-amber-500">Bulan berjalan</p>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Komisi Tertunda</span>
+                  <div>
+                    <h3 className="text-2xl font-extrabold text-slate-900 mb-1">{loading ? '…' : formatRupiah(doctorStats?.pending_commission ?? 0)}</h3>
+                    <p className="text-xs font-semibold text-blue-500">Dari total {formatRupiah(doctorStats?.total_commission ?? 0)}</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Kunjungan Hari Ini</span>
+                  <div>
+                    <h3 className="text-2xl font-extrabold text-slate-900 mb-1">{loading ? '…' : stats?.visits_today ?? 0}</h3>
+                    <p className="text-xs font-semibold text-[#2EC4B6]">Hari ini</p>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Kunjungan Bulan Ini</span>
+                  <div>
+                    <h3 className="text-2xl font-extrabold text-slate-900 mb-1">{loading ? '…' : stats?.visits_this_month ?? 0}</h3>
+                    <p className="text-xs font-semibold text-emerald-600">Bulan berjalan</p>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Piutang Terbuka</span>
+                  <div>
+                    <h3 className="text-2xl font-extrabold text-slate-900 mb-1">{loading ? '…' : formatRupiah(stats?.open_receivables ?? 0)}</h3>
+                    <p className="text-xs font-semibold text-amber-500">Belum tertagih</p>
+                  </div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Total Pasien</span>
+                  <div>
+                    <h3 className="text-2xl font-extrabold text-slate-900 mb-1">{loading ? '…' : stats?.patients ?? 0}</h3>
+                    <p className="text-xs font-semibold text-blue-500">Terdaftar</p>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4 w-full">
@@ -244,16 +323,34 @@ export default function DashboardTimKlinik() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {loading ? (
-                    <tr>
-                      <td colSpan={6} className="py-6 text-center text-slate-400">Memuat data…</td>
-                    </tr>
-                  ) : (stats?.recent_visits?.length ?? 0) === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-6 text-center text-slate-400">Belum ada kunjungan.</td>
-                    </tr>
-                  ) : (
-                    stats?.recent_visits?.map((v) => (
+                  {(() => {
+                    const rows: RecentVisit[] = isDoctor
+                      ? doctorVisits.map((v) => ({
+                          id: v.id,
+                          invoice_number: v.invoice_number,
+                          patient_name: v.patient?.name ?? '—',
+                          doctor_name: namaDokter,
+                          visit_date: v.visit_date,
+                          total: v.total,
+                          payment_status: v.payment_status,
+                        }))
+                      : stats?.recent_visits ?? [];
+
+                    if (loading) {
+                      return (
+                        <tr>
+                          <td colSpan={6} className="py-6 text-center text-slate-400">Memuat data…</td>
+                        </tr>
+                      );
+                    }
+                    if (rows.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={6} className="py-6 text-center text-slate-400">Belum ada kunjungan.</td>
+                        </tr>
+                      );
+                    }
+                    return rows.map((v) => (
                       <tr key={v.id} className="hover:bg-slate-50 transition">
                         <td className="py-3.5 font-bold text-[#2EC4B6]">{v.invoice_number}</td>
                         <td className="py-3.5 font-bold text-slate-900">{v.patient_name}</td>
@@ -276,8 +373,8 @@ export default function DashboardTimKlinik() {
                           </span>
                         </td>
                       </tr>
-                    ))
-                  )}
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>

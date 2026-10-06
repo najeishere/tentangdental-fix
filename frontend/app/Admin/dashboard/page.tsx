@@ -5,12 +5,32 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { fetchApi } from '@/utils/api';
+
+type RecentVisit = {
+  id: number;
+  invoice_number: string;
+  patient_name: string;
+  doctor_name: string;
+  visit_date: string;
+  total: number;
+  payment_status: string;
+};
 
 export default function DashboardAdmin() {
   const router = useRouter();
   const [tanggalHariIni, setTanggalHariIni] = useState('');
   const [namaAdmin, setNamaAdmin] = useState('Nadia A.');
   const [jabatanAdmin, setJabatanAdmin] = useState('Finance Admin');
+
+  const [stats, setStats] = useState<{
+    revenue: number;
+    expenses: number;
+    net: number;
+    receivables: number;
+    recentVisits: RecentVisit[];
+    loading: boolean;
+  }>({ revenue: 0, expenses: 0, net: 0, receivables: 0, recentVisits: [], loading: true });
 
   // State untuk statistik antrean dinamis yang tersinkronisasi dari Manajemen Antrean
   const [statAntrean, setStatAntrean] = useState({
@@ -30,22 +50,49 @@ export default function DashboardAdmin() {
     if (savedNama) setNamaAdmin(savedNama);
     if (savedJabatan) setJabatanAdmin(savedJabatan);
 
+    if (!localStorage.getItem('token')) {
+      router.replace('/login');
+      return;
+    }
+
+    // Ambil statistik keuangan dari API
+    const loadStats = async () => {
+      try {
+        const json = await fetchApi('/dashboard');
+        const d = json?.data ?? {};
+        setStats({
+          revenue: d.totals?.revenue ?? 0,
+          expenses: d.totals?.expenses ?? 0,
+          net: d.totals?.net_clinic_profit ?? 0,
+          receivables: d.open_receivables ?? 0,
+          recentVisits: d.recent_visits ?? [],
+          loading: false,
+        });
+      } catch {
+        setStats((s) => ({ ...s, loading: false }));
+      }
+    };
+    loadStats();
+
     // Ambil data antrean dari localStorage jika ada perubahan dari Manajemen Antrean
     const savedAntrean = localStorage.getItem('daftarAntreanKlinik');
     if (savedAntrean) {
       try {
         const parsedAntrean = JSON.parse(savedAntrean);
         const total = parsedAntrean.length;
-        const pending = parsedAntrean.filter((item: any) => item.status === 'Pending').length;
-        const proses = parsedAntrean.filter((item: any) => item.status === 'Proses').length;
-        const selesai = parsedAntrean.filter((item: any) => item.status === 'Selesai').length;
+        const pending = parsedAntrean.filter((item: { status: string }) => item.status === 'Pending').length;
+        const proses = parsedAntrean.filter((item: { status: string }) => item.status === 'Proses').length;
+        const selesai = parsedAntrean.filter((item: { status: string }) => item.status === 'Selesai').length;
 
         setStatAntrean({ total, pending, proses, selesai });
       } catch (e) {
         console.error('Gagal memuat data antrean', e);
       }
     }
-  }, []);
+  }, [router]);
+
+  const rupiah = (n: number) =>
+    new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n);
 
   return (
     <div className="min-h-screen bg-[#F4F5F7] flex font-sans text-slate-800">
@@ -81,7 +128,7 @@ export default function DashboardAdmin() {
                   { name: 'Manajemen Antrean', path: '/Admin/manajemen-antrean', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
                   { name: 'Pencatatan Tagihan', path: '/Admin/pencatatan-tagihan', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01' },
                   { name: 'Pembayaran', path: '/Admin/pembayaran', icon: 'M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z' },
-                  { name: 'Pengiriman Lab', path: '/Admin/pengirima-lab', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
+                  { name: 'Pengiriman Lab', path: '/Admin/pengiriman-lab', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
                   { name: 'Catatan BMHP', path: '/Admin/catatan-bmhp', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' }
                 ].map((menu, i) => (
                   <Link key={i} href={menu.path} className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
@@ -180,10 +227,10 @@ export default function DashboardAdmin() {
           {/* Kartu Statistik Keuangan */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { title: 'Total Revenue', amount: 'Rp 85.400.000', note: '+12.4% vs bulan lalu', color: 'text-[#2EC4B6]', bg: 'bg-teal-50' },
-              { title: 'Total Expenses', amount: 'Rp 32.000.000', note: '+4.8%', color: 'text-rose-500', bg: 'bg-rose-50' },
-              { title: 'Net Profit', amount: 'Rp 53.400.000', note: '+18.2%', color: 'text-[#2EC4B6]', bg: 'bg-teal-50' },
-              { title: 'Cash Balance', amount: 'Rp 72.500.000', note: 'Saldo kas tersedia', color: 'text-blue-500', bg: 'bg-blue-50' },
+              { title: 'Total Revenue', amount: stats.loading ? '…' : rupiah(stats.revenue), note: 'Pendapatan bulan ini', color: 'text-[#2EC4B6]', bg: 'bg-teal-50' },
+              { title: 'Total Expenses', amount: stats.loading ? '…' : rupiah(stats.expenses), note: 'Pengeluaran bulan ini', color: 'text-rose-500', bg: 'bg-rose-50' },
+              { title: 'Net Profit', amount: stats.loading ? '…' : rupiah(stats.net), note: 'Laba bersih klinik', color: 'text-[#2EC4B6]', bg: 'bg-teal-50' },
+              { title: 'Piutang Terbuka', amount: stats.loading ? '…' : rupiah(stats.receivables), note: 'Belum tertagih', color: 'text-blue-500', bg: 'bg-blue-50' },
             ].map((stat, idx) => (
               <div key={idx} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex flex-col justify-between">
                 <div className="flex justify-between items-start mb-3">
@@ -273,41 +320,47 @@ export default function DashboardAdmin() {
               </div>
 
               <div className="divide-y divide-slate-100 text-xs">
-                <div className="py-2.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-rose-50 text-rose-500 rounded-xl flex items-center justify-center font-bold">↗</div>
-                    <div>
-                      <p className="font-bold text-slate-900">Restock Kapas & Sarung Tangan</p>
-                      <p className="text-[10px] text-slate-400">KAS-002</p>
+                {stats.loading ? (
+                  <div className="py-4 text-center text-slate-400">Memuat transaksi…</div>
+                ) : stats.recentVisits.length === 0 ? (
+                  <div className="py-4 text-center text-slate-400">Belum ada transaksi.</div>
+                ) : (
+                  stats.recentVisits.slice(0, 5).map((v) => (
+                    <div key={v.id} className="py-2.5 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-bold ${v.payment_status === 'paid' ? 'bg-teal-50 text-[#2EC4B6]' : 'bg-amber-50 text-amber-500'}`}>
+                          {v.payment_status === 'paid' ? '↙' : '…'}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900">{v.patient_name}</p>
+                          <p className="text-[10px] text-slate-400">{v.invoice_number}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-slate-900">
+                          {new Date(v.visit_date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        </p>
+                        <p className="text-[10px] text-slate-400">{v.doctor_name}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className={`font-bold ${v.payment_status === 'paid' ? 'text-[#2EC4B6]' : v.payment_status === 'partial' ? 'text-amber-500' : 'text-rose-500'}`}>
+                          +{rupiah(v.total)}
+                        </p>
+                        <span
+                          className={`px-2 py-0.5 rounded-md font-bold text-[9px] ${
+                            v.payment_status === 'paid'
+                              ? 'bg-emerald-100 text-emerald-700'
+                              : v.payment_status === 'partial'
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-rose-100 text-rose-600'
+                          }`}
+                        >
+                          {v.payment_status === 'paid' ? 'Lunas' : v.payment_status === 'partial' ? 'Sebagian' : 'Belum'}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-slate-900">16 Sep 2026</p>
-                    <p className="text-[10px] text-slate-400">Clinic supplies</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-rose-500">-Rp 250.000</p>
-                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md font-bold text-[9px]">Completed</span>
-                  </div>
-                </div>
-
-                <div className="py-2.5 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-teal-50 text-[#2EC4B6] rounded-xl flex items-center justify-center font-bold">↙</div>
-                    <div>
-                      <p className="font-bold text-slate-900">Pembayaran Rina Kartika</p>
-                      <p className="text-[10px] text-slate-400">KAS-001</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-slate-900">16 Sep 2026</p>
-                    <p className="text-[10px] text-slate-400">Treatment income</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-[#2EC4B6]">+Rp 395.000</p>
-                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md font-bold text-[9px]">Completed</span>
-                  </div>
-                </div>
+                  ))
+                )}
               </div>
             </div>
 

@@ -73,7 +73,7 @@ export default function CatatanBmhpPage() {
 
             <div className="space-y-1">
               <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Operasional</p>
-              <Link href="/Admin/antrean" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800/60 transition text-slate-400 hover:text-white">
+              <Link href="/Admin/manajemen-antrean" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800/60 transition text-slate-400 hover:text-white">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 Manajemen Antrean
               </Link>
@@ -89,7 +89,7 @@ export default function CatatanBmhpPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M10 2v7.31M14 9.31V2M8.5 2h7M14 22v-4.19M10 17.81V22M9.5 22h5M5 14h14M4 10h16"/></svg>
                 Pengiriman Lab
               </Link>
-              <Link href="/Admin/bmhp" className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#2EC4B6] text-white font-medium shadow-sm">
+              <Link href="/Admin/catatan-bmhp" className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-[#2EC4B6] text-white font-medium shadow-sm">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
                 Catatan BMHP
               </Link>
@@ -101,7 +101,7 @@ export default function CatatanBmhpPage() {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
                 Rekonsiliasi
               </Link>
-              <Link href="/Admin/laporan" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800/60 transition text-slate-400 hover:text-white">
+              <Link href="/Admin/laporan-keuangan" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800/60 transition text-slate-400 hover:text-white">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                 Laporan Keuangan
               </Link>
@@ -109,11 +109,11 @@ export default function CatatanBmhpPage() {
 
             <div className="space-y-1">
               <p className="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Data</p>
-              <Link href="/Admin/pasien" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800/60 transition text-slate-400 hover:text-white">
+              <Link href="/Admin/data-pasien" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800/60 transition text-slate-400 hover:text-white">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 Data Pasien
               </Link>
-              <Link href="/Admin/tindakans" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800/60 transition text-slate-400 hover:text-white">
+              <Link href="/Admin/data-tindakan" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-800/60 transition text-slate-400 hover:text-white">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
                 Data Tindakan
               </Link>

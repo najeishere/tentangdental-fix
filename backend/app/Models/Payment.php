@@ -9,6 +9,7 @@ class Payment extends Model
 {
     public const METHOD_CASH = 'cash';
     public const METHOD_QRIS = 'qris';
+    public const METHOD_TRANSFER = 'transfer';
 
     public const STATUS_PENDING = 'pending';
     public const STATUS_CONFIRMED = 'confirmed';

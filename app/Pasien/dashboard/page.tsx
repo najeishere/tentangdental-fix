@@ -49,67 +49,9 @@ export default function DashboardPasien() {
 
   return (
     <div className="w-full min-h-screen bg-[#F4F5F7] flex font-sans overflow-hidden">
-      
-      {/* Sidebar */}
-      <aside className="w-[240px] bg-[#1A1D2E] flex flex-col justify-between shrink-0">
-        <div>
-          <div className="px-6 py-5 border-b border-white/[0.08] flex items-center gap-3">
-            <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center overflow-hidden">
-              <Image src="/logo.png" alt="Logo" width={36} height={36} className="object-contain" />
-            </div>
-            <div>
-              <span className="text-white text-sm font-bold block">TentangDental</span>
-              <span className="text-[#2EC4B6] text-xs">Pasien</span>
-            </div>
-          </div>
-
-          <div className="p-3">
-            <p className="text-white/30 text-xs font-semibold px-3 pt-4 pb-1 tracking-wider">OVERVIEW</p>
-            <NavItem label="Dashboard" href="/Pasien/dashboard" active />
-            
-            <p className="text-white/30 text-xs font-semibold px-3 pt-6 pb-1 tracking-wider">LAYANAN</p>
-            <NavItem label="Antrean Saya" href="#" />
-            <NavItem label="Riwayat Kunjungan" href="#" />
-            <NavItem label="Tagihan & Invoice" href="#" />
-          </div>
-        </div>
-
-        <div className="p-4">
-          <Link href="/Pasien/login" className="text-white/40 hover:text-white text-sm block mb-4 transition">← Keluar</Link>
-          <div className="p-4 bg-[#2EC4B6]/[0.12] rounded-2xl border border-[#2EC4B6]/20">
-            <p className="text-[#2EC4B6] font-bold text-xs mb-1"> Butuh Bantuan?</p>
-            <p className="text-white/45 text-xs mb-2">Hubungi support kami.</p>
-            <a href="#" className="text-[#2EC4B6] text-xs font-semibold hover:underline">Pusat bantuan →</a>
-          </div>
-        </div>
-      </aside>
-
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-y-auto">
-        <header className="px-8 py-4 bg-white border-b border-[#E5E7EB] flex justify-between items-center shrink-0">
-          <div>
-            <h1 className="text-[#1A1D2E] text-lg font-bold">Dashboard</h1>
-            <p className="text-[#6B7280] text-sm">Ringkasan aktivitas klinik</p>
-          </div>
-          <div className="flex items-center gap-4">
-            {/* Tanggal sekarang otomatis tampil */}
-            <div className="px-3 py-2 rounded-xl border border-[#E5E7EB] text-[#6B7280] text-sm">
-              📅 {tanggalHariIni}
-            </div>
-
-            {/* Bagian Profil yang bisa diklik untuk menuju halaman profil */}
-            <Link href="/Pasien/profil" className="flex items-center gap-2 cursor-pointer group hover:opacity-80 transition">
-              <div className="w-9 h-9 bg-[#2EC4B6] rounded-full flex items-center justify-center text-white font-bold">
-                B
-              </div>
-              <div>
-                <span className="text-[#1A1D2E] text-sm font-semibold block leading-tight group-hover:underline">Budi Santoso</span>
-                <span className="text-[#9CA3AF] text-xs">P-00124</span>
-              </div>
-            </Link>
-          </div>
-        </header>
-
+        
         <div className="p-8 flex flex-col gap-6">
           {/* Banner */}
           <div className="p-6 bg-gradient-to-r from-[#1A1D2E] to-[#2EC4B6] rounded-2xl text-white flex flex-col gap-4 shadow-sm">

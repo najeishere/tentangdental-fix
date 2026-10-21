@@ -1,455 +1,433 @@
-// app/Admin/rekonsiliasi/page.tsx
+// app/(admin)/rekonsiliasi/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
-export default function RekonsiliasiAdmin() {
-  const router = useRouter();
-  const [tanggalHariIni, setTanggalHariIni] = useState('29 September 2026');
-  const [namaAdmin, setNamaAdmin] = useState('Nadia A.');
-  const [jabatanAdmin, setJabatanAdmin] = useState('Admin');
+// Tipe data item alokasi
+interface AlokasiItem {
+  id: string;
+  nama: string;
+  sub: string;
+  nominal: number;
+  persen: number;
+  warna: string;
+  bgWarna: string;
+  badgeWarna: string;
+  icon: JSX.Element;
+  deskripsi: string;
+  catatan?: string;
+  rincian: {
+    no: number;
+    nama: string;
+    keterangan: string;
+    tanggal: string;
+    jumlah: string;
+  }[];
+}
 
-  // State navigasi detail alokasi
-  const [activeDetail, setActiveDetail] = useState<string | null>(null);
+export default function RekonsiliasiPage() {
+  const [selectedAlokasi, setSelectedAlokasi] = useState<AlokasiItem | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
-  const totalKasMasuk = 85400000;
-  const totalAlokasi = 76500000;
-  const labaBersih = 8900000;
-
-  // Data Rincian Lengkap untuk SETIAP Sub Bab
-  const detailData: Record<string, { title: string; desc: string; color: string; totalAlokasi: string; totalRealisasiNum: number; items: { no: number; nama: string; ket: string; tgl: string; jumlah: string; rawJumlah: number }[] }> = {
-    'Beban BMHP': {
-      title: 'Beban BMHP',
-      desc: 'Restock bahan dental',
-      color: 'bg-[#B4846C]',
-      totalAlokasi: 'Rp 12.750.000',
-      totalRealisasiNum: 11500000,
-      items: [
-        { no: 1, nama: 'Polishing Paste', ket: 'Tube 100g × 20 pcs', tgl: '03 Sep 2026', jumlah: 'Rp 1.800.000', rawJumlah: 1800000 },
-        { no: 2, nama: 'Sarung Tangan Latex M', ket: 'Box 100 × 8 box', tgl: '03 Sep 2026', jumlah: 'Rp 1.600.000', rawJumlah: 1600000 },
-        { no: 3, nama: 'Sarung Tangan Latex S', ket: 'Box 100 × 4 box', tgl: '03 Sep 2026', jumlah: 'Rp 800.000', rawJumlah: 800000 },
-        { no: 4, nama: 'Masker Medis 3-ply', ket: 'Box 50 × 10 box', tgl: '05 Sep 2026', jumlah: 'Rp 750.000', rawJumlah: 750000 },
-        { no: 5, nama: 'Kapas Gulungan', ket: '250g × 12 rol', tgl: '05 Sep 2026', jumlah: 'Rp 420.000', rawJumlah: 420000 },
-        { no: 6, nama: 'Jarum Suntik Dental', ket: 'Pcs × 200 pcs', tgl: '10 Sep 2026', jumlah: 'Rp 1.000.000', rawJumlah: 1000000 },
-        { no: 7, nama: 'Dental Bibs', ket: 'Pack × 10 pack', tgl: '12 Sep 2026', jumlah: 'Rp 450.000', rawJumlah: 450000 },
-        { no: 8, nama: 'Eugenol Liquid', ket: 'Botol 15ml', tgl: '15 Sep 2026', jumlah: 'Rp 350.000', rawJumlah: 350000 },
-        { no: 9, nama: 'Glass Ionomer Cement', ket: 'Set restorasi gigi', tgl: '18 Sep 2026', jumlah: 'Rp 2.100.000', rawJumlah: 2100000 },
-        { no: 10, nama: 'Composite Resin', ket: 'Syringe 4g', tgl: '20 Sep 2026', jumlah: 'Rp 1.480.000', rawJumlah: 1480000 },
-        { no: 11, nama: 'Etching Gel', ket: 'Syringe 3ml', tgl: '22 Sep 2026', jumlah: 'Rp 250.000', rawJumlah: 250000 },
-        { no: 12, nama: 'Boning Agent', ket: 'Botol 5ml', tgl: '25 Sep 2026', jumlah: 'Rp 1.250.000', rawJumlah: 1250000 },
-      ]
-    },
-    'Biaya Lab': {
-      title: 'Biaya Lab',
-      desc: 'Bayar tagihan vendor lab',
-      color: 'bg-purple-600',
-      totalAlokasi: 'Rp 15.300.000',
-      totalRealisasiNum: 15300000,
-      items: [
-        { no: 1, nama: 'Behel Metal Pasien', ket: 'INV-LAB-091', tgl: '02 Sep 2026', jumlah: 'Rp 1.200.000', rawJumlah: 1200000 },
-        { no: 2, nama: 'Crown Porcelain (PFM)', ket: 'INV-LAB-087', tgl: '05 Sep 2026', jumlah: 'Rp 2.800.000', rawJumlah: 2800000 },
-        { no: 3, nama: 'Gigi Tiruan Lepasan', ket: 'INV-LAB-088', tgl: '08 Sep 2026', jumlah: 'Rp 1.750.000', rawJumlah: 1750000 },
-        { no: 4, nama: 'Study Model + Artikulasi', ket: 'INV-LAB-092', tgl: '10 Sep 2026', jumlah: 'Rp 450.000', rawJumlah: 450000 },
-        { no: 5, nama: 'Bleaching Tray Custom', ket: 'INV-LAB-093', tgl: '12 Sep 2026', jumlah: 'Rp 600.000', rawJumlah: 600000 },
-        { no: 6, nama: 'Inlay / Onlay Porcelain', ket: 'INV-LAB-095', tgl: '15 Sep 2026', jumlah: 'Rp 3.200.000', rawJumlah: 3200000 },
-        { no: 7, nama: 'Night Guard / Retainer', ket: 'INV-LAB-096', tgl: '18 Sep 2026', jumlah: 'Rp 1.500.000', rawJumlah: 1500000 },
-        { no: 8, nama: 'Bridge Porcelain 3 Unit', ket: 'INV-LAB-098', tgl: '20 Sep 2026', jumlah: 'Rp 3.800.000', rawJumlah: 3800000 },
-      ]
-    },
-    'Bagi Hasil Dokter': {
-      title: 'Bagi Hasil Dokter',
-      desc: 'Jasa medis dokter gigi',
-      color: 'bg-[#2EC4B6]',
-      totalAlokasi: 'Rp 29.750.000',
-      totalRealisasiNum: 29750000,
-      items: [
-        { no: 1, nama: 'drg. Sari Dewi', ket: 'Scaling & Polishing × 18 pasien', tgl: '30 Sep 2026', jumlah: 'Rp 12.600.000', rawJumlah: 12600000 },
-        { no: 2, nama: 'drg. Sari Dewi', ket: 'Tambal Komposit × 9 pasien', tgl: '30 Sep 2026', jumlah: 'Rp 5.400.000', rawJumlah: 5400000 },
-        { no: 3, nama: 'drg. Sari Dewi', ket: 'Konsultasi & Pemeriksaan × 12 pasien', tgl: '30 Sep 2026', jumlah: 'Rp 2.400.000', rawJumlah: 2400000 },
-        { no: 4, nama: 'drg. Hendra K.', ket: 'Pemasangan Behel Baru × 3 pasien', tgl: '30 Sep 2026', jumlah: 'Rp 4.200.000', rawJumlah: 4200000 },
-        { no: 5, nama: 'drg. Hendra K.', ket: 'Pencabutan Gigi Bedah × 5 pasien', tgl: '30 Sep 2026', jumlah: 'Rp 3.150.000', rawJumlah: 3150000 },
-        { no: 6, nama: 'drg. Hendra K.', ket: 'Kontrol & Adjust Ortho × 7 pasien', tgl: '30 Sep 2026', jumlah: 'Rp 2.000.000', rawJumlah: 2000000 },
-      ]
-    },
-    'Bagi Hasil Perawat': {
-      title: 'Bagi Hasil Perawat',
-      desc: 'Jasa perawat asisten',
-      color: 'bg-teal-400',
-      totalAlokasi: 'Rp 4.250.000',
-      totalRealisasiNum: 4250000,
-      items: [
-        { no: 1, nama: 'Rina (Perawat)', ket: 'Asistensi Scaling & Polishing × 18 tindakan', tgl: '30 Sep 2026', jumlah: 'Rp 1.800.000', rawJumlah: 1800000 },
-        { no: 2, nama: 'Rina (Perawat)', ket: 'Asistensi Tambal Komposit × 9 tindakan', tgl: '30 Sep 2026', jumlah: 'Rp 900.000', rawJumlah: 900000 },
-        { no: 3, nama: 'Rina (Perawat)', ket: 'Asistensi Pemasangan Behel × 3 tindakan', tgl: '30 Sep 2026', jumlah: 'Rp 750.000', rawJumlah: 750000 },
-        { no: 4, nama: 'Dewi (Perawat)', ket: 'Sterilisasi Alat & Persiapan Klinik', tgl: '30 Sep 2026', jumlah: 'Rp 800.000', rawJumlah: 800000 },
-      ]
-    },
-    'Gaji Staf': {
-      title: 'Gaji Staf',
-      desc: 'Resepsionis & admin',
-      color: 'bg-blue-500',
-      totalAlokasi: 'Rp 8.500.000',
-      totalRealisasiNum: 8500000,
-      items: [
-        { no: 1, nama: 'Nadia A.', ket: 'Finance Admin — Gaji Pokok', tgl: '28 Sep 2026', jumlah: 'Rp 3.500.000', rawJumlah: 3500000 },
-        { no: 2, nama: 'Dani Setiawan', ket: 'Resepsionis — Gaji Pokok', tgl: '28 Sep 2026', jumlah: 'Rp 2.800.000', rawJumlah: 2800000 },
-        { no: 3, nama: 'Nadia A.', ket: 'Finance Admin — Tunjangan Transport', tgl: '28 Sep 2026', jumlah: 'Rp 300.000', rawJumlah: 300000 },
-        { no: 4, nama: 'Dani Setiawan', ket: 'Resepsionis — Tunjangan Transport', tgl: '28 Sep 2026', jumlah: 'Rp 300.000', rawJumlah: 300000 },
-        { no: 5, nama: 'Nadia A.', ket: 'Finance Admin — Tunjangan Makan', tgl: '28 Sep 2026', jumlah: 'Rp 600.000', rawJumlah: 600000 },
-        { no: 6, nama: 'Dani Setiawan', ket: 'Resepsionis — Tunjangan Makan', tgl: '28 Sep 2026', jumlah: 'Rp 600.000', rawJumlah: 600000 },
-        { no: 7, nama: 'Tim Kebersihan', ket: 'Jasa Cleaning Service Bulanan', tgl: '28 Sep 2026', jumlah: 'Rp 400.000', rawJumlah: 400000 },
-      ]
-    },
-    'Utilitas': {
-      title: 'Utilitas',
-      desc: 'Listrik, air, internet',
-      color: 'bg-amber-500',
-      totalAlokasi: 'Rp 3.400.000',
-      totalRealisasiNum: 3400000,
-      items: [
-        { no: 1, nama: 'PLN — Listrik', ket: 'Daya 13.200 VA — No. Pel. 512340001', tgl: '05 Sep 2026', jumlah: 'Rp 1.850.000', rawJumlah: 1850000 },
-        { no: 2, nama: 'PDAM — Air', ket: 'Penggunaan 28 m³ — No. Pel. 89210', tgl: '05 Sep 2026', jumlah: 'Rp 420.000', rawJumlah: 420000 },
-        { no: 3, nama: 'Biznet — Internet', ket: 'Paket 100 Mbps dedicated — Inv. BN-Sep', tgl: '03 Sep 2026', jumlah: 'Rp 850.000', rawJumlah: 850000 },
-        { no: 4, nama: 'Telkom — Telepon', ket: 'Line PSTN klinik + pulsa bisnis', tgl: '07 Sep 2026', jumlah: 'Rp 280.000', rawJumlah: 280000 },
-      ]
-    },
-    'Maintenance Alat': {
-      title: 'Maintenance Alat',
-      desc: 'Autoclave, dental chair service',
-      color: 'bg-rose-500',
-      totalAlokasi: 'Rp 2.550.000',
-      totalRealisasiNum: 2550000,
-      items: [
-        { no: 1, nama: 'Autoclave Tuttnauer', ket: 'Servis berkala + penggantian gasket', tgl: '08 Sep 2026', jumlah: 'Rp 850.000', rawJumlah: 850000 },
-        { no: 2, nama: 'Dental Chair Unit #1', ket: 'Kalibrasi & pelumasan hidrolik', tgl: '10 Sep 2026', jumlah: 'Rp 600.000', rawJumlah: 600000 },
-        { no: 3, nama: 'Dental Chair Unit #2', ket: 'Penggantian headrest cover + servis pompa', tgl: '10 Sep 2026', jumlah: 'Rp 450.000', rawJumlah: 450000 },
-        { no: 4, nama: 'X-Ray Dental (Intraoral)', ket: 'Kalibrasi dosis + pemeriksaan kondisi sensor', tgl: '15 Sep 2026', jumlah: 'Rp 400.000', rawJumlah: 400000 },
-        { no: 5, nama: 'Kompresor Udara', ket: 'Pembersihan filter + cek tekanan', tgl: '22 Sep 2026', jumlah: 'Rp 250.000', rawJumlah: 250000 },
-      ]
-    }
+  const triggerToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3500);
   };
 
-  useEffect(() => {
-    const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
-    const todayStr = new Date().toLocaleDateString('id-ID', options);
-    setTanggalHariIni(todayStr);
-    const savedNama = localStorage.getItem('adminNama');
-    const savedJabatan = localStorage.getItem('adminJabatan');
-    if (savedNama) setNamaAdmin(savedNama);
-    if (savedJabatan) setJabatanAdmin(savedJabatan);
-  }, []);
+  // Ringkasan Keuangan Utama
+  const totalKasMasuk = 85400000;
+  const totalAlokasi = 76500000;
+  const labaBersih = totalKasMasuk - totalAlokasi;
 
-  const currentDetail = activeDetail ? detailData[activeDetail] : null;
+  // Daftar Alokasi Kas
+  const alokasiList: AlokasiItem[] = [
+    {
+      id: 'bmhp',
+      nama: 'Beban BMHP',
+      sub: 'Restock bahan dental',
+      nominal: 12750000,
+      persen: 15,
+      warna: 'bg-amber-800',
+      bgWarna: 'bg-[#B07D70]',
+      badgeWarna: 'bg-amber-50 text-amber-800 hover:bg-amber-100',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+        </svg>
+      ),
+      deskripsi: 'Pembelian bahan medis habis pakai (BMHP) untuk operasional klinik bulan September 2026.',
+      rincian: [
+        { no: 1, nama: 'Polishing Paste', keterangan: 'Tube 100g × 20 pcs', tanggal: '03 Sep 2026', jumlah: 'Rp 1.800.000' },
+        { no: 2, nama: 'Sarung Tangan Latex M', keterangan: 'Box 100 × 8 box', tanggal: '03 Sep 2026', jumlah: 'Rp 1.600.000' },
+        { no: 3, nama: 'Sarung Tangan Latex S', keterangan: 'Box 100 × 4 box', tanggal: '03 Sep 2026', jumlah: 'Rp 800.000' },
+        { no: 4, nama: 'Masker Medis 3-ply', keterangan: 'Box 50 × 10 box', tanggal: '05 Sep 2026', jumlah: 'Rp 750.000' },
+        { no: 5, nama: 'Kapas Gulungan', keterangan: '250g × 12 rol', tanggal: '05 Sep 2026', jumlah: 'Rp 420.000' },
+        { no: 6, nama: 'Jarum Suntik Dental', keterangan: 'Pcs × 200 pcs', tanggal: '10 Sep 2026', jumlah: 'Rp 1.200.000' },
+      ],
+    },
+    {
+      id: 'lab',
+      nama: 'Biaya Lab',
+      sub: 'Bayar tagihan vendor lab',
+      nominal: 15300000,
+      persen: 18,
+      warna: 'bg-purple-600',
+      bgWarna: 'bg-[#8B5CF6]',
+      badgeWarna: 'bg-purple-50 text-purple-600 hover:bg-purple-100',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L5.6 15.12a2 2 0 00-1.022.547l-1.01 1.01a2 2 0 00-.568 1.414V20a1 1 0 001 1h16a1 1 0 001-1v-1.909a2 2 0 00-.568-1.414l-1.01-1.01zM12 3a4 4 0 100 8 4 4 0 000-8z" />
+        </svg>
+      ),
+      deskripsi: 'Tagihan jasa vendor laboratorium dental untuk pekerjaan bulan September 2026.',
+      rincian: [
+        { no: 1, nama: 'Behel Metal Pasien Reza Pratama', keterangan: 'CV Mitra Gigi Sehat — INV-LAB-091', tanggal: '02 Sep 2026', jumlah: 'Rp 1.200.000' },
+        { no: 2, nama: 'Crown Porcelain Fused Metal (PFM) ×2', keterangan: 'CV Mitra Gigi Sehat — INV-LAB-087', tanggal: '05 Sep 2026', jumlah: 'Rp 2.800.000' },
+        { no: 3, nama: 'Gigi Tiruan Sebagian Lepasan ×1', keterangan: 'Lab Denta Prima — INV-LAB-088', tanggal: '08 Sep 2026', jumlah: 'Rp 1.700.000' },
+        { no: 4, nama: 'Study Model + Artikulasi', keterangan: 'CV Mitra Gigi Sehat — INV-LAB-092', tanggal: '10 Sep 2026', jumlah: 'Rp 450.000' },
+      ],
+    },
+    {
+      id: 'dokter',
+      nama: 'Bagi Hasil Dokter',
+      sub: 'Jasa medis drg. Sari Dewi',
+      nominal: 29750000,
+      persen: 35,
+      warna: 'bg-teal-500',
+      bgWarna: 'bg-[#25A99D]',
+      badgeWarna: 'bg-teal-50 text-teal-600 hover:bg-teal-100',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      ),
+      deskripsi: 'Bagi hasil jasa medis dokter berdasarkan total pendapatan tindakan.',
+      rincian: [
+        { no: 1, nama: 'drg. Sari Dewi', keterangan: 'Persentase 35% dari total Omset Tindakan Medis', tanggal: '30 Sep 2026', jumlah: 'Rp 29.750.000' },
+      ],
+    },
+    {
+      id: 'perawat',
+      nama: 'Bagi Hasil Perawat',
+      sub: 'Jasa perawat',
+      nominal: 4250000,
+      persen: 5,
+      warna: 'bg-teal-400',
+      bgWarna: 'bg-[#25A99D]',
+      badgeWarna: 'bg-teal-50 text-teal-600 hover:bg-teal-100',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      ),
+      deskripsi: 'Bagi hasil jasa perawat berdasarkan kontribusi tindakan asistensi selama September 2026.',
+      catatan: 'Persentase bagi hasil perawat: 5% dari total pendapatan tindakan medis.',
+      rincian: [
+        { no: 1, nama: 'Rina (Perawat)', keterangan: 'Asistensi Scaling & Polishing × 18 tindakan', tanggal: '30 Sep 2026', jumlah: 'Rp 1.800.000' },
+        { no: 2, nama: 'Rina (Perawat)', keterangan: 'Asistensi Tambal Komposit × 9 tindakan', tanggal: '30 Sep 2026', jumlah: 'Rp 900.000' },
+        { no: 3, nama: 'Rina (Perawat)', keterangan: 'Asistensi Pemasangan Behel × 3 tindakan', tanggal: '30 Sep 2026', jumlah: 'Rp 750.000' },
+        { no: 4, nama: 'Rina (Perawat)', keterangan: 'Asistensi PSA × 2 tindakan', tanggal: '30 Sep 2026', jumlah: 'Rp 400.000' },
+        { no: 5, nama: 'Rina (Perawat)', keterangan: 'Sterilisasi Alat & Persiapan Ruangan', tanggal: '30 Sep 2026', jumlah: 'Rp 400.000' },
+      ],
+    },
+    {
+      id: 'gaji',
+      nama: 'Gaji Staf',
+      sub: 'Resepsionis & admin',
+      nominal: 8500000,
+      persen: 10,
+      warna: 'bg-blue-500',
+      bgWarna: 'bg-[#3B82F6]',
+      badgeWarna: 'bg-blue-50 text-blue-600 hover:bg-blue-100',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+        </svg>
+      ),
+      deskripsi: 'Penggajian staf non-medis klinik untuk periode September 2026.',
+      catatan: 'Pembayaran gaji dilakukan setiap tanggal 28 atau hari kerja terakhir sebelumnya.',
+      rincian: [
+        { no: 1, nama: 'Nadia A.', keterangan: 'Finance Admin — Gaji Pokok', tanggal: '28 Sep 2026', jumlah: 'Rp 3.500.000' },
+        { no: 2, nama: 'Dani Setiawan', keterangan: 'Resepsionis — Gaji Pokok', tanggal: '28 Sep 2026', jumlah: 'Rp 2.800.000' },
+        { no: 3, nama: 'Nadia A.', keterangan: 'Finance Admin — Tunjangan Transport', tanggal: '28 Sep 2026', jumlah: 'Rp 300.000' },
+        { no: 4, nama: 'Dani Setiawan', keterangan: 'Resepsionis — Tunjangan Transport', tanggal: '28 Sep 2026', jumlah: 'Rp 300.000' },
+        { no: 5, nama: 'Nadia A.', keterangan: 'Finance Admin — Tunjangan Makan', tanggal: '28 Sep 2026', jumlah: 'Rp 600.000' },
+        { no: 6, nama: 'Dani Setiawan', keterangan: 'Resepsionis — Tunjangan Makan', tanggal: '28 Sep 2026', jumlah: 'Rp 600.000' },
+        { no: 7, nama: 'Keduanya', keterangan: 'BPJS Ketenagakerjaan (4%)', tanggal: '28 Sep 2026', jumlah: 'Rp 252.000' },
+        { no: 8, nama: 'Keduanya', keterangan: 'BPJS Kesehatan (1%)', tanggal: '28 Sep 2026', jumlah: 'Rp 148.000' },
+      ],
+    },
+    {
+      id: 'utilitas',
+      nama: 'Utilitas',
+      sub: 'Listrik, air, internet',
+      nominal: 3400000,
+      persen: 4,
+      warna: 'bg-amber-500',
+      bgWarna: 'bg-[#F59E0B]',
+      badgeWarna: 'bg-amber-50 text-amber-600 hover:bg-amber-100',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      ),
+      deskripsi: 'Tagihan utilitas operasional klinik (listrik, air, internet, dan telepon) bulan September 2026.',
+      catatan: 'Tagihan dibayarkan setiap awal bulan untuk tagihan bulan sebelumnya.',
+      rincian: [
+        { no: 1, nama: 'PLN — Listrik', keterangan: 'Daya 13.200 VA — No. Pel. 512340001', tanggal: '05 Sep 2026', jumlah: 'Rp 1.850.000' },
+        { no: 2, nama: 'PDAM — Air', keterangan: 'Penggunaan 28 m³ — No. Pel. 89210', tanggal: '05 Sep 2026', jumlah: 'Rp 420.000' },
+        { no: 3, nama: 'Biznet — Internet', keterangan: 'Paket 100 Mbps dedicated — Inv. BN-Sep', tanggal: '03 Sep 2026', jumlah: 'Rp 850.000' },
+        { no: 4, nama: 'Telkom — Telepon', keterangan: 'Line PSTN klinik + pulsa bisnis', tanggal: '07 Sep 2026', jumlah: 'Rp 280.000' },
+      ],
+    },
+    {
+      id: 'maintenance',
+      nama: 'Maintenance Alat',
+      sub: 'Autoclave, dental chair service',
+      nominal: 2550000,
+      persen: 3,
+      warna: 'bg-rose-500',
+      bgWarna: 'bg-[#EF4444]',
+      badgeWarna: 'bg-rose-50 text-rose-500 hover:bg-rose-100',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+      deskripsi: 'Biaya perawatan dan servis peralatan medis klinik selama September 2026.',
+      catatan: 'Servis dilakukan oleh teknisi bersertifikat. Semua alat dalam kondisi layak pakai setelah servis.',
+      rincian: [
+        { no: 1, nama: 'Autoclave Tuttnauer', keterangan: 'Servis berkala + penggantian gasket — CV Medtech', tanggal: '08 Sep 2026', jumlah: 'Rp 850.000' },
+        { no: 2, nama: 'Dental Chair Unit #1', keterangan: 'Kalibrasi & pelumasan hidrolik — CV Medtech', tanggal: '10 Sep 2026', jumlah: 'Rp 600.000' },
+        { no: 3, nama: 'Dental Chair Unit #2', keterangan: 'Penggantian headrest cover + servis pompa', tanggal: '10 Sep 2026', jumlah: 'Rp 450.000' },
+        { no: 4, nama: 'X-Ray Dental (Intraoral)', keterangan: 'Kalibrasi dosis + pemeriksaan kondisi sensor', tanggal: '15 Sep 2026', jumlah: 'Rp 400.000' },
+        { no: 5, nama: 'Kompresor Udara', keterangan: 'Pembersihan filter + cek tekanan — CV Medtech', tanggal: '22 Sep 2026', jumlah: 'Rp 250.000' },
+      ],
+    },
+  ];
 
+  // SUB-VIEW: DETAIL ALOKASI
+  if (selectedAlokasi) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        {/* Tombol Kembali */}
+        <button
+          onClick={() => setSelectedAlokasi(null)}
+          className="flex items-center gap-2 text-xs font-semibold text-gray-500 hover:text-gray-900 transition"
+        >
+          <span>‹</span> Kembali ke Rekonsiliasi
+        </button>
+
+        {/* Hero Card Banner Color */}
+        <div className={`p-8 rounded-3xl text-white shadow-md ${selectedAlokasi.bgWarna} relative overflow-hidden`}>
+          <div className="flex items-start justify-between relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center">
+                {selectedAlokasi.icon}
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">{selectedAlokasi.nama}</h2>
+                <p className="text-xs text-white/80">{selectedAlokasi.sub}</p>
+              </div>
+            </div>
+
+            <div className="text-right">
+              <p className="text-[10px] uppercase font-bold tracking-wider text-white/70">Alokasi Bulan Ini</p>
+              <p className="text-2xl font-bold mt-0.5">Rp {selectedAlokasi.nominal.toLocaleString('id-ID')}</p>
+              <p className="text-[11px] text-white/80 mt-1">{selectedAlokasi.persen}% dari total kas masuk</p>
+            </div>
+          </div>
+
+          {/* Progress Bar Header */}
+          <div className="mt-8 space-y-1 relative z-10">
+            <div className="w-full h-2 bg-black/20 rounded-full overflow-hidden">
+              <div className="h-full bg-white rounded-full" style={{ width: `${selectedAlokasi.persen}%` }} />
+            </div>
+            <div className="flex justify-between text-[10px] text-white/70 font-medium">
+              <span>0%</span>
+              <span>{selectedAlokasi.persen}% dari Rp 85,4jt</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Rincian Transaksi */}
+        <div className="p-6 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900">Rincian Transaksi</h3>
+              <p className="text-xs text-gray-400 mt-0.5">{selectedAlokasi.deskripsi}</p>
+            </div>
+            <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">
+              {selectedAlokasi.rincian.length} item
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="text-gray-400 border-b border-gray-100 font-semibold uppercase">
+                  <th className="pb-3 w-10">#</th>
+                  <th className="pb-3">Nama / Deskripsi</th>
+                  <th className="pb-3">Keterangan</th>
+                  <th className="pb-3">Tanggal</th>
+                  <th className="pb-3 text-right">Jumlah</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {selectedAlokasi.rincian.map((item) => (
+                  <tr key={item.no} className="hover:bg-gray-50/50 transition">
+                    <td className="py-3.5">
+                      <span className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 text-[10px]">
+                        {item.no}
+                      </span>
+                    </td>
+                    <td className="py-3.5 font-bold text-gray-900">{item.nama}</td>
+                    <td className="py-3.5 text-gray-500">{item.keterangan}</td>
+                    <td className="py-3.5 text-gray-400">{item.tanggal}</td>
+                    <td className="py-3.5 text-right font-bold text-gray-900">{item.jumlah}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="pt-4 border-t border-gray-100 flex justify-between items-center font-bold text-sm">
+            <span className="text-gray-500">Total Realisasi</span>
+            <span className="text-gray-900">Rp {selectedAlokasi.nominal.toLocaleString('id-ID')}</span>
+          </div>
+        </div>
+
+        {/* Catatan Khusus di Bawah */}
+        {selectedAlokasi.catatan && (
+          <div className="p-4 bg-teal-50/50 border border-teal-100 rounded-2xl flex items-center gap-2.5 text-xs text-teal-800">
+            <span className="w-4 h-4 rounded-full border border-teal-600 flex items-center justify-center text-[10px] font-bold shrink-0">
+              !
+            </span>
+            <span>{selectedAlokasi.catatan}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // TAMPILAN UTAMA REKONSILIASI
   return (
-    <div className="min-h-screen bg-[#F4F5F7] flex font-sans text-slate-800 w-full relative">
-      
-      {/* SIDEBAR KIRI */}
-      <aside className="w-64 bg-[#1A1D2E] text-white flex flex-col justify-between shrink-0 h-screen sticky top-0 overflow-y-auto">
-        <div>
-          <div className="px-6 py-4 border-b border-white/10 flex items-center gap-3">
-            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-sm">
-              <Image src="/logo.png" alt="Logo" width={36} height={36} className="object-contain" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold tracking-wide">TentangDental</h2>
-              <p className="text-xs text-[#2EC4B6]">Finance Admin</p>
-            </div>
+    <div className="space-y-6 relative min-h-[500px]">
+      {/* 1. THREE TOP SUMMARY CARDS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {/* Total Kas Masuk */}
+        <div className="p-6 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-2">
+          <div className="flex items-center gap-2 text-teal-500 text-xs font-semibold">
+            <span className="w-5 h-5 rounded-lg bg-teal-50 flex items-center justify-center text-xs">↙</span>
+            <span>Total Kas Masuk</span>
           </div>
+          <p className="text-2xl font-bold text-teal-600">Rp {totalKasMasuk.toLocaleString('id-ID')}</p>
+        </div>
 
-          <div className="p-3 space-y-4 text-xs">
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-3 mb-1.5">Overview</p>
-              <Link href="/Admin/dashboard" className="px-3 py-2 rounded-xl text-slate-300 hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
-                Dashboard
-              </Link>
-            </div>
+        {/* Total Alokasi */}
+        <div className="p-6 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-2">
+          <div className="flex items-center gap-2 text-rose-500 text-xs font-semibold">
+            <span className="w-5 h-5 rounded-lg bg-rose-50 flex items-center justify-center text-xs">↗</span>
+            <span>Total Alokasi</span>
+          </div>
+          <p className="text-2xl font-bold text-rose-600">Rp {totalAlokasi.toLocaleString('id-ID')}</p>
+        </div>
 
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-3 mb-1.5">Operasional</p>
-              <div className="space-y-0.5 text-slate-300">
-                <Link href="/Admin/manajemen-antrean" className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                  <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                  Manajemen Antrean
-                </Link>
-                <Link href="/Admin/pencatatan-tagihan" className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                  <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-                  Pencatatan Tagihan
-                </Link>
-                <Link href="/Admin/pembayaran" className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                  <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-                  Pembayaran
-                </Link>
-                {[
-                  { name: 'Pengiriman Lab', path: '#', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-                  { name: 'Catatan BMHP', path: '#', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' }
-                ].map((menu, i) => (
-                  <Link key={i} href={menu.path} className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                    <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={menu.icon}/></svg>
-                    {menu.name}
-                  </Link>
-                ))}
-              </div>
-            </div>
+        {/* Laba Bersih */}
+        <div className="p-6 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-2">
+          <div className="flex items-center gap-2 text-teal-600 text-xs font-semibold">
+            <span className="w-5 h-5 rounded-lg bg-teal-50 flex items-center justify-center text-xs">$</span>
+            <span>Laba Bersih</span>
+          </div>
+          <p className="text-2xl font-bold text-teal-600">Rp {labaBersih.toLocaleString('id-ID')}</p>
+        </div>
+      </div>
 
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-3 mb-1.5">Keuangan</p>
-              <div className="space-y-0.5 text-slate-300">
-                <div className="px-3 py-2 bg-[#2EC4B6] text-white font-medium rounded-xl flex items-center gap-3 shadow-sm cursor-pointer">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
-                  Rekonsiliasi
+      {/* 2. ALOKASI KAS CONTAINER */}
+      <div className="p-6 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-6">
+        <h3 className="text-sm font-bold text-gray-900">Alokasi Kas — September 2026</h3>
+
+        <div className="space-y-6">
+          {alokasiList.map((item) => (
+            <div key={item.id} className="flex items-center justify-between gap-4 group">
+              <div className="flex items-center gap-4 flex-1">
+                <div className={`w-10 h-10 rounded-2xl ${item.badgeWarna} flex items-center justify-center shrink-0`}>
+                  {item.icon}
                 </div>
-                <Link href="/Admin/laporan-keuangan" className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                  <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                  Laporan Keuangan
-                </Link>
-               </div>
-            </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <div>
+                      <p className="text-xs font-bold text-gray-900">{item.nama}</p>
+                      <p className="text-[10px] text-gray-400">{item.sub}</p>
+                    </div>
+                    <span className="text-xs font-bold text-gray-900">
+                      Rp {item.nominal.toLocaleString('id-ID')}
+                    </span>
+                  </div>
 
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-3 mb-1.5">Data & Sistem</p>
-              <div className="space-y-0.5 text-slate-300">
-                {[
-                    { name: 'Data Pasien', path: '/Admin/data-pasien', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z' },
-                    { name: 'Data Tindakan', path: '/Admin/data-tindakan', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
-                    { name: 'Pengaturan', path: '/Admin/pengaturan', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065zM15 12a3 3 0 11-6 0 3 3 0 016 0z' }
-                ].map((menu, i) => (
-                    <Link key={i} href={menu.path} className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                        <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={menu.icon}/></svg>
-                        {menu.name}
-                    </Link>
-                ))}
+                  {/* Progress Bar Alokasi */}
+                  <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className={`h-full ${item.warna} rounded-full`} style={{ width: `${item.persen}%` }} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-4 shrink-0">
+                <span className="text-xs text-gray-400 font-semibold w-8 text-right">{item.persen}%</span>
+                <button
+                  onClick={() => setSelectedAlokasi(item)}
+                  className="px-3 py-1.5 border border-gray-200 hover:border-teal-500 hover:text-teal-600 text-gray-600 rounded-xl text-xs font-semibold transition"
+                >
+                  Detail ›
+                </button>
               </div>
             </div>
-          </div>
+          ))}
         </div>
 
-        <div className="p-3 border-t border-white/10 space-y-3">
-          <Link href="/Admin/login" className="flex items-center gap-2.5 text-xs text-slate-400 hover:text-white transition px-3 py-1.5 font-medium">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-            Keluar Akun
-          </Link>
-        </div>
-      </aside>
-
-      {/* KONTEN UTAMA */}
-      <div className="flex-1 flex flex-col min-w-0">
-        
-        {/* Header Atas */}
-        <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-20">
+        {/* FOOTER ACTIONS */}
+        <div className="pt-6 border-t border-gray-100 flex items-center justify-between">
           <div>
-            <h1 className="text-base font-bold text-slate-900">Rekonsiliasi Keuangan</h1>
-            <p className="text-[11px] text-slate-500">Alokasi kas masuk ke pengeluaran</p>
+            <p className="text-[10px] text-gray-400 font-medium">Laba Bersih</p>
+            <p className="text-lg font-bold text-teal-600">Rp {labaBersih.toLocaleString('id-ID')}</p>
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-600 flex items-center gap-2">
-              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-              {tanggalHariIni}
-            </div>
-
-            <button className="w-9 h-9 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center relative hover:bg-slate-100 transition text-slate-600">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-              <span className="w-2 h-2 bg-rose-500 rounded-full absolute top-2 right-2"></span>
-            </button>
-
-            <div 
-              onClick={() => router.push('/Admin/pengaturan')}
-              className="flex items-center gap-2.5 pl-2 pr-3 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl cursor-pointer transition"
+            <button
+              onClick={() => triggerToast('Rekonsiliasi keuangan berhasil diperbarui.')}
+              className="px-5 py-2.5 bg-[#25A99D] hover:bg-teal-600 text-white rounded-xl text-xs font-bold shadow-sm transition"
             >
-              <div className="w-7 h-7 bg-[#2EC4B6] rounded-full text-white font-bold text-xs flex items-center justify-center shadow-sm">
-                {namaAdmin.charAt(0)}
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-bold text-slate-900 leading-tight">{namaAdmin}</p>
-                <p className="text-[10px] text-slate-400">{jabatanAdmin}</p>
-              </div>
-            </div>
+              Simpan Alokasi
+            </button>
+            <button
+              onClick={() => triggerToast('Jurnal transaksi berhasil di-export ke Excel/PDF.')}
+              className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export Jurnal
+            </button>
           </div>
-        </header>
-
-        {/* Isi Halaman */}
-        <main className="p-6 space-y-6 overflow-y-auto">
-          
-          {currentDetail ? (
-            /* HALAMAN DETAIL KATEGORI ALOKASI */
-            <div className="space-y-6">
-              <button 
-                onClick={() => setActiveDetail(null)}
-                className="text-xs font-bold text-[#2EC4B6] hover:underline flex items-center gap-1.5"
-              >
-                ← Kembali ke Rekonsiliasi
-              </button>
-
-              {/* Kartu Header Detail */}
-              <div className={`${currentDetail.color} text-white p-8 rounded-3xl shadow-sm space-y-6 relative overflow-hidden`}>
-                <div className="flex justify-between items-start relative z-10">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center text-xl">📋</div>
-                    <div>
-                      <h2 className="text-lg font-bold">{currentDetail.title}</h2>
-                      <p className="text-xs text-white/80">{currentDetail.desc}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-white/80">Alokasi Bulan Ini</p>
-                    <p className="text-2xl font-bold">{currentDetail.totalAlokasi}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Tiga Kartu Ringkasan Detail */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Alokasi</p>
-                  <p className="text-lg font-bold text-slate-900">{currentDetail.totalAlokasi}</p>
-                  <p className="text-[10px] text-slate-400">Ditetapkan</p>
-                </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Realisasi</p>
-                  <p className="text-lg font-bold text-slate-900">Rp {currentDetail.totalRealisasiNum.toLocaleString('id-ID')}</p>
-                  <p className="text-[10px] text-slate-400">{currentDetail.items.length} transaksi</p>
-                </div>
-                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Selisih</p>
-                  <p className="text-lg font-bold text-[#2EC4B6]">Rp 0</p>
-                  <p className="text-[10px] text-slate-400">Sisa Anggaran</p>
-                </div>
-              </div>
-
-              {/* Rincian Transaksi */}
-              <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Rincian Transaksi — {currentDetail.title}</h3>
-                  <span className="px-3 py-1 bg-slate-100 text-slate-600 rounded-full text-[10px] font-bold">{currentDetail.items.length} item</span>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="text-slate-400 border-b border-slate-100">
-                        <th className="pb-3 font-semibold w-10">#</th>
-                        <th className="pb-3 font-semibold">Nama / Deskripsi</th>
-                        <th className="pb-3 font-semibold">Keterangan</th>
-                        <th className="pb-3 font-semibold">Tanggal</th>
-                        <th className="pb-3 font-semibold text-right">Jumlah</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 text-slate-700">
-                      {currentDetail.items.map((item) => (
-                        <tr key={item.no} className="hover:bg-slate-50 transition">
-                          <td className="py-3.5 font-bold text-slate-400">
-                            <span className="w-6 h-6 bg-slate-100 rounded-full inline-flex items-center justify-center text-[10px]">{item.no}</span>
-                          </td>
-                          <td className="py-3.5 font-bold text-slate-900">{item.nama}</td>
-                          <td className="py-3.5 text-slate-600">{item.ket}</td>
-                          <td className="py-3.5 text-slate-500">{item.tgl}</td>
-                          <td className="py-3.5 font-bold text-right text-slate-900">{item.jumlah}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* GRAND TOTAL DI BAGIAN BAWAH TABEL DETAIL */}
-                <div className="pt-4 border-t border-slate-200 flex justify-between items-center bg-slate-50 px-4 py-3 rounded-xl">
-                  <span className="text-xs font-bold text-slate-900 uppercase">Total Keseluruhan (Grand Total)</span>
-                  <span className="text-sm font-bold text-[#2EC4B6]">Rp {currentDetail.totalRealisasiNum.toLocaleString('id-ID')}</span>
-                </div>
-
-              </div>
-            </div>
-          ) : (
-            /* HALAMAN UTAMA REKONSILIASI */
-            <>
-              {/* KARTU RINGKASAN TIGA ATAS */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-[#2EC4B6]"></span> Total Kas Masuk
-                  </p>
-                  <p className="text-2xl font-bold text-[#2EC4B6]">Rp {totalKasMasuk.toLocaleString('id-ID')}</p>
-                </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-amber-500"></span> Total Alokasi
-                  </p>
-                  <p className="text-2xl font-bold text-amber-600">Rp {totalAlokasi.toLocaleString('id-ID')}</p>
-                </div>
-                <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span> Laba Bersih
-                  </p>
-                  <p className="text-2xl font-bold text-emerald-600">Rp {labaBersih.toLocaleString('id-ID')}</p>
-                </div>
-              </div>
-
-              {/* TABEL UTAMA ALOKASI KAS */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
-                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Alokasi Kas — September 2026</h3>
-
-                <div className="space-y-4">
-                  {[
-                    { name: 'Beban BMHP', desc: 'Restock bahan dental', nominal: 'Rp 12.750.000', pct: '15%', barColor: 'bg-[#B4846C]', w: 'w-[15%]' },
-                    { name: 'Biaya Lab', desc: 'Bayar tagihan vendor lab', nominal: 'Rp 15.300.000', pct: '18%', barColor: 'bg-purple-600', w: 'w-[18%]' },
-                    { name: 'Bagi Hasil Dokter', desc: 'Jasa medis dokter gigi', nominal: 'Rp 29.750.000', pct: '35%', barColor: 'bg-[#2EC4B6]', w: 'w-[35%]' },
-                    { name: 'Bagi Hasil Perawat', desc: 'Jasa perawat asisten', nominal: 'Rp 4.250.000', pct: '5%', barColor: 'bg-teal-400', w: 'w-[5%]' },
-                    { name: 'Gaji Staf', desc: 'Resepsionis & admin', nominal: 'Rp 8.500.000', pct: '10%', barColor: 'bg-blue-500', w: 'w-[10%]' },
-                    { name: 'Utilitas', desc: 'Listrik, air, internet', nominal: 'Rp 3.400.000', pct: '4%', barColor: 'bg-amber-500', w: 'w-[4%]' },
-                    { name: 'Maintenance Alat', desc: 'Autoclave, dental chair service', nominal: 'Rp 2.550.000', pct: '3%', barColor: 'bg-rose-500', w: 'w-[3%]' },
-                  ].map((item, idx) => (
-                    <div key={idx} className="p-4 bg-slate-50/50 hover:bg-slate-50 rounded-2xl transition border border-slate-100 space-y-3">
-                      <div className="flex justify-between items-center">
-                        <div className="space-y-0.5">
-                          <p className="text-xs font-bold text-slate-900">{item.name}</p>
-                          <p className="text-[10px] text-slate-400">{item.desc}</p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-xs font-bold text-slate-900">{item.nominal}</p>
-                            <p className="text-[10px] text-slate-400">{item.pct}</p>
-                          </div>
-                          <button 
-                            onClick={() => setActiveDetail(item.name)}
-                            className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition shadow-sm"
-                          >
-                            Detail ›
-                          </button>
-                        </div>
-                      </div>
-                      <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                        <div className={`${item.barColor} h-full ${item.w}`}></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Footer Laba & Tombol Aksi */}
-                <div className="pt-4 border-t border-slate-200 flex flex-col md:flex-row justify-between items-center gap-4">
-                  <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Laba Bersih</p>
-                    <p className="text-lg font-bold text-emerald-600">Rp {labaBersih.toLocaleString('id-ID')}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => alert('Alokasi berhasil disimpan!')} className="px-6 py-3 bg-[#2EC4B6] hover:bg-[#259f93] text-white rounded-xl text-xs font-bold transition shadow-sm">
-                      Simpan Alokasi
-                    </button>
-                    <button onClick={() => alert('Export Jurnal PDF/Excel')} className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">
-                      Export Jurnal
-                    </button>
-                  </div>
-                </div>
-
-              </div>
-            </>
-          )}
-
-        </main>
+        </div>
       </div>
+
+      {/* TOAST NOTIFIKASI KANAN BAWAH */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-start gap-3 p-3.5 px-4 bg-[#E6F8F3] border border-[#25A99D]/30 rounded-2xl shadow-xl max-w-xs transition animate-fade-in">
+          <div className="w-5 h-5 rounded-full border border-[#25A99D] flex items-center justify-center text-[#25A99D] text-[10px] font-bold shrink-0 mt-0.5">
+            ✓
+          </div>
+          <div className="flex-1 pr-2">
+            <p className="text-xs font-bold text-gray-900 leading-tight">Alokasi Disimpan</p>
+            <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">{toast}</p>
+          </div>
+          <button onClick={() => setToast(null)} className="text-gray-400 hover:text-gray-600 text-xs font-bold leading-none">
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }

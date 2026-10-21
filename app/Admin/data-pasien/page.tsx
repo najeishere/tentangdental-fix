@@ -1,395 +1,487 @@
-// app/Admin/data-pasien/page.tsx
+// app/(admin)/pasien/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
-export default function DataPasienAdmin() {
-  const router = useRouter();
-  const [tanggalHariIni, setTanggalHariIni] = useState('1 Oktober 2026');
-  const [namaAdmin, setNamaAdmin] = useState('Nadia A.');
-  const [jabatanAdmin, setJabatanAdmin] = useState('Admin');
-  const [searchQuery, setSearchQuery] = useState('');
+interface RiwayatKunjungan {
+  tindakan: string;
+  tanggal: string;
+  dokter: string;
+  status: 'Selesai';
+}
 
-  // State Modal Pasien Baru
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formPasien, setFormPasien] = useState({
-    nama: '',
-    usia: '',
-    telepon: '',
-    email: '',
-    alamat: '',
-    status: 'Aktif',
-  });
+interface Pasien {
+  id: string;
+  kode: string;
+  nama: string;
+  usia: number;
+  telepon: string;
+  nik: string;
+  email: string;
+  alamat: string;
+  kunjunganTerakhir: string;
+  totalKunjungan: number;
+  status: 'Aktif' | 'Nonaktif';
+  riwayat: RiwayatKunjungan[];
+}
 
-  // Daftar Data Pasien Sesuai Figma
-  const [daftarPasien, setDaftarPasien] = useState([
-    { id: 'P-00124', inisial: 'B', nama: 'Budi Santoso', usia: '31 th', telepon: '0812-3456-7890', kunjungan: '16 Sep 2026', total: '12x', status: 'Aktif' },
-    { id: 'P-00123', inisial: 'S', nama: 'Siti Nurhaliza', usia: '27 th', telepon: '0813-2345-6789', kunjungan: '12 Sep 2026', total: '5x', status: 'Aktif' },
-    { id: 'P-00122', inisial: 'R', nama: 'Reza Pratama', usia: '24 th', telepon: '0814-3456-7890', kunjungan: '16 Sep 2026', total: '3x', status: 'Aktif' },
-    { id: 'P-00121', inisial: 'S', nama: 'Sri Wahyuni', usia: '55 th', telepon: '0815-4567-8901', kunjungan: '16 Sep 2026', total: '8x', status: 'Aktif' },
-    { id: 'P-00120', inisial: 'D', nama: 'Dewi Rahayu', usia: '42 th', telepon: '0816-5678-9012', kunjungan: '16 Sep 2026', total: '6x', status: 'Aktif' },
-    { id: 'P-00119', inisial: 'F', nama: 'Farhan Maulana', usia: '35 th', telepon: '0817-6789-0123', kunjungan: '16 Sep 2026', total: '4x', status: 'Aktif' },
-    { id: 'P-00118', inisial: 'R', nama: 'Rina Kartika', usia: '28 th', telepon: '0818-7890-1234', kunjungan: '16 Sep 2026', total: '7x', status: 'Aktif' },
-    { id: 'P-00117', inisial: 'A', nama: 'Agus Setiawan', usia: '45 th', telepon: '0819-8901-2345', kunjungan: '05 Sep 2026', total: '10x', status: 'Aktif' },
+export default function PasienPage() {
+  const [search, setSearch] = useState('');
+  const [showModalTambah, setShowModalTambah] = useState(false);
+  const [selectedPasien, setSelectedPasien] = useState<Pasien | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  // Form State
+  const [nama, setNama] = useState('');
+  const [usia, setUsia] = useState('');
+  const [telepon, setTelepon] = useState('');
+  const [email, setEmail] = useState('');
+  const [alamat, setAlamat] = useState('');
+  const [status, setStatus] = useState<'Aktif' | 'Nonaktif'>('Aktif');
+
+  const [pasienList, setPasienList] = useState<Pasien[]>([
+    {
+      id: '1',
+      kode: 'P-00124',
+      nama: 'Budi Santoso',
+      usia: 31,
+      telepon: '81234567890',
+      nik: '3174011503950001',
+      email: 'budi@email.com',
+      alamat: 'Jl. Merdeka No.12',
+      kunjunganTerakhir: '16 Sep 2026',
+      totalKunjungan: 12,
+      status: 'Aktif',
+      riwayat: [
+        { tindakan: 'Scaling & Polishing', tanggal: '16 Sep 2026', dokter: 'drg. Sari Dewi', status: 'Selesai' },
+        { tindakan: 'Konsultasi', tanggal: '02 Sep 2026', dokter: 'drg. Hendra K.', status: 'Selesai' },
+        { tindakan: 'Tambal Gigi Komposit', tanggal: '15 Agu 2026', dokter: 'drg. Sari Dewi', status: 'Selesai' },
+      ],
+    },
+    {
+      id: '2',
+      kode: 'P-00125',
+      nama: 'Dewi Rahayu',
+      usia: 42,
+      telepon: '81398765432',
+      nik: '3174025208840003',
+      email: 'dewi.rahayu@email.com',
+      alamat: 'Jl. Sudirman No.45',
+      kunjunganTerakhir: '28 Sep 2026',
+      totalKunjungan: 8,
+      status: 'Aktif',
+      riwayat: [
+        { tindakan: 'Pemeriksaan Rutin', tanggal: '28 Sep 2026', dokter: 'drg. Sari Dewi', status: 'Selesai' },
+      ],
+    },
   ]);
 
-  useEffect(() => {
-    const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
-    setTanggalHariIni(new Date().toLocaleDateString('id-ID', options));
-
-    const savedNama = localStorage.getItem('adminNama');
-    const savedJabatan = localStorage.getItem('adminJabatan');
-    if (savedNama) setNamaAdmin(savedNama);
-    if (savedJabatan) setJabatanAdmin(savedJabatan);
-  }, []);
-
-  const filteredPasien = daftarPasien.filter(p => 
-    p.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    p.telepon.includes(searchQuery)
-  );
-
-  const handleTambahPasien = (e: React.FormEvent) => {
-    e.preventDefault();
-    const idBaru = `P-001${daftarPasien.length + 25}`;
-    const inisialBaru = formPasien.nama.charAt(0).toUpperCase();
-
-    const pasienBaru = {
-      id: idBaru,
-      inisial: inisialBaru,
-      nama: formPasien.nama,
-      usia: `${formPasien.usia} th`,
-      telepon: formPasien.telepon,
-      kunjungan: 'Baru saja',
-      total: '1x',
-      status: formPasien.status,
-    };
-
-    setDaftarPasien([pasienBaru, ...daftarPasien]);
-    setIsModalOpen(false);
-    setFormPasien({ nama: '', usia: '', telepon: '', email: '', alamat: '', status: 'Aktif' });
-    alert('Pasien baru berhasil didaftarkan!');
+  const showNotification = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3500);
   };
 
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setTelepon(e.target.value.replace(/\D/g, ''));
+  };
+
+  const handleUsiaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/\D/g, '');
+    setUsia(val);
+  };
+
+  const handleDeletePasien = (id: string, namaPasien: string) => {
+    setPasienList(pasienList.filter((p) => p.id !== id));
+    if (selectedPasien?.id === id) setSelectedPasien(null);
+    showNotification(`Data pasien ${namaPasien} berhasil dihapus.`);
+  };
+
+  const handleSubmitTambah = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nama || !telepon) return;
+
+    const newKode = `P-00${pasienList.length + 126}`;
+    const newPasien: Pasien = {
+      id: Date.now().toString(),
+      kode: newKode,
+      nama,
+      usia: parseInt(usia) || 0,
+      telepon,
+      nik: '31740' + Math.floor(1000000000 + Math.random() * 9000000000),
+      email: email || `${nama.toLowerCase().replace(/\s+/g, '')}@email.com`,
+      alamat: alamat || '-',
+      kunjunganTerakhir: 'Hari ini',
+      totalKunjungan: 1,
+      status,
+      riwayat: [],
+    };
+
+    setPasienList([newPasien, ...pasienList]);
+    setShowModalTambah(false);
+    setNama('');
+    setUsia('');
+    setTelepon('');
+    setEmail('');
+    setAlamat('');
+    setStatus('Aktif');
+
+    showNotification(`Pasien ${nama} berhasil ditambahkan.`);
+  };
+
+  const filteredPasien = pasienList.filter(
+    (p) =>
+      p.nama.toLowerCase().includes(search.toLowerCase()) ||
+      p.kode.toLowerCase().includes(search.toLowerCase()) ||
+      p.telepon.includes(search)
+  );
+
   return (
-    <div className="min-h-screen bg-[#F4F5F7] flex font-sans text-slate-800 w-full relative">
-      
-      {/* SIDEBAR KIRI */}
-      <aside className="w-64 bg-[#1A1D2E] text-white flex flex-col justify-between shrink-0 h-screen sticky top-0 overflow-y-auto">
+    <div className="space-y-6 relative min-h-[500px]">
+      {/* HEADER & TOMBOL TAMBAH PASIEN */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="px-6 py-4 border-b border-white/10 flex items-center gap-3">
-            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-sm">
-              <Image src="/logo.png" alt="Logo" width={36} height={36} className="object-contain" />
-            </div>
-            <div>
-              <h2 className="text-sm font-bold tracking-wide">TentangDental</h2>
-              <p className="text-xs text-[#2EC4B6]">Finance Admin</p>
-            </div>
-          </div>
-
-          <div className="p-3 space-y-4 text-xs">
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-3 mb-1.5">Overview</p>
-              <Link href="/Admin/dashboard" className="px-3 py-2 rounded-xl text-slate-300 hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
-                Dashboard
-              </Link>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-3 mb-1.5">Operasional</p>
-              <div className="space-y-0.5 text-slate-300">
-                <Link href="/Admin/manajemen-antrean" className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                  <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                  Manajemen Antrean
-                </Link>
-                <Link href="/Admin/pencatatan-tagihan" className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                  <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-                  Pencatatan Tagihan
-                </Link>
-                <Link href="/Admin/pembayaran" className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                  <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/></svg>
-                  Pembayaran
-                </Link>
-                {[
-                  { name: 'Pengiriman Lab', path: '#', icon: 'M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4' },
-                  { name: 'Catatan BMHP', path: '#', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' }
-                ].map((menu, i) => (
-                  <Link key={i} href={menu.path} className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                    <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d={menu.icon}/></svg>
-                    {menu.name}
-                  </Link>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-3 mb-1.5">Keuangan</p>
-              <div className="space-y-0.5 text-slate-300">
-                <Link href="/Admin/rekonsiliasi" className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                  <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/></svg>
-                  Rekonsiliasi
-                </Link>
-                <Link href="/Admin/laporan-keuangan" className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">
-                  <svg className="w-4 h-4 opacity-70" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                  Laporan Keuangan
-                </Link>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 tracking-wider uppercase px-3 mb-1.5">Data & Sistem</p>
-              <div className="space-y-0.5 text-slate-300">
-                <div className="px-3 py-2 bg-[#2EC4B6] text-white font-medium rounded-xl flex items-center gap-3 shadow-sm cursor-pointer">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-                  Data Pasien
-                </div>
-                <Link href="#" className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">Data Tindakan</Link>
-                <Link href="/Admin/pengaturan" className="px-3 py-2 rounded-xl hover:bg-white/5 hover:text-white cursor-pointer transition flex items-center gap-3">Pengaturan</Link>
-              </div>
-            </div>
-          </div>
+          <h2 className="text-sm font-bold text-gray-900">Data Pasien</h2>
+          <p className="text-xs text-gray-400">Kelola dan lihat rekam medis singkat pasien klinik</p>
         </div>
 
-        <div className="p-3 border-t border-white/10 space-y-3">
-          <Link href="/Admin/login" className="flex items-center gap-2.5 text-xs text-slate-400 hover:text-white transition px-3 py-1.5 font-medium">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-            Keluar Akun
-          </Link>
-        </div>
-      </aside>
-
-      {/* KONTEN UTAMA */}
-      <div className="flex-1 flex flex-col min-w-0">
-        
-        {/* Header Atas */}
-        <header className="h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between sticky top-0 z-20">
-          <div>
-            <h1 className="text-base font-bold text-slate-900">Data Pasien</h1>
-            <p className="text-[11px] text-slate-500">Daftar seluruh pasien terdaftar</p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-600 flex items-center gap-2">
-              <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-              {tanggalHariIni}
-            </div>
-
-            <button className="w-9 h-9 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-center relative hover:bg-slate-100 transition text-slate-600">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-              <span className="w-2 h-2 bg-rose-500 rounded-full absolute top-2 right-2"></span>
-            </button>
-
-            <div 
-              onClick={() => router.push('/Admin/pengaturan')}
-              className="flex items-center gap-2.5 pl-2 pr-3 py-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl cursor-pointer transition"
-            >
-              <div className="w-7 h-7 bg-[#2EC4B6] rounded-full text-white font-bold text-xs flex items-center justify-center shadow-sm">
-                {namaAdmin.charAt(0)}
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-bold text-slate-900 leading-tight">{namaAdmin}</p>
-                <p className="text-[10px] text-slate-400">{jabatanAdmin}</p>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* Isi Halaman */}
-        <main className="p-6 space-y-6 overflow-y-auto">
-          
-          <div className="flex justify-between items-center">
-            <p className="text-xs font-bold text-slate-500">{filteredPasien.length} pasien terdaftar</p>
-            <button 
-              onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2.5 bg-[#2EC4B6] hover:bg-[#259f93] text-white rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-1.5"
-            >
-              <span>+</span> Pasien Baru
-            </button>
-          </div>
-
-          {/* MODAL TAMBAH PASIEN BARU */}
-          {isModalOpen && (
-            <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xl space-y-4 w-full max-w-lg relative animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex justify-between items-center pb-3 border-b border-slate-100">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900">Tambah Pasien Baru</h3>
-                    <p className="text-[11px] text-slate-400">Lengkapi informasi pasien di bawah ini.</p>
-                  </div>
-                  <button 
-                    onClick={() => setIsModalOpen(false)}
-                    className="text-slate-400 hover:text-slate-600 font-bold text-base"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <form onSubmit={handleTambahPasien} className="space-y-4 text-xs">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-slate-500 font-semibold mb-1">Nama Lengkap</label>
-                      <input 
-                        type="text" 
-                        placeholder="Nama pasien" 
-                        value={formPasien.nama}
-                        onChange={(e) => setFormPasien({...formPasien, nama: e.target.value})}
-                        required
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-500 font-semibold mb-1">Usia (Tahun)</label>
-                      <input 
-                        type="number" 
-                        placeholder="0" 
-                        value={formPasien.usia}
-                        onChange={(e) => setFormPasien({...formPasien, usia: e.target.value})}
-                        required
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-slate-500 font-semibold mb-1">Nomor Telepon</label>
-                      <input 
-                        type="text" 
-                        placeholder="08xxxxxxxxxx" 
-                        value={formPasien.telepon}
-                        onChange={(e) => setFormPasien({...formPasien, telepon: e.target.value})}
-                        required
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6]"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-slate-500 font-semibold mb-1">Email</label>
-                      <input 
-                        type="email" 
-                        placeholder="nama@email.com" 
-                        value={formPasien.email}
-                        onChange={(e) => setFormPasien({...formPasien, email: e.target.value})}
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6]"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-500 font-semibold mb-1">Alamat</label>
-                    <textarea 
-                      rows={3}
-                      placeholder="Alamat lengkap pasien" 
-                      value={formPasien.alamat}
-                      onChange={(e) => setFormPasien({...formPasien, alamat: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6]"
-                    ></textarea>
-                  </div>
-
-                  <div>
-                    <label className="block text-slate-500 font-semibold mb-1">Status</label>
-                    <select 
-                      value={formPasien.status}
-                      onChange={(e) => setFormPasien({...formPasien, status: e.target.value})}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6] bg-white"
-                    >
-                      <option>Aktif</option>
-                      <option>Non-Aktif</option>
-                    </select>
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <button 
-                      type="button" 
-                      onClick={() => setIsModalOpen(false)}
-                      className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition"
-                    >
-                      Batal
-                    </button>
-                    <button 
-                      type="submit" 
-                      className="flex-1 py-3 bg-[#2EC4B6] hover:bg-[#259f93] text-white rounded-xl font-bold transition shadow-sm"
-                    >
-                      Tambah Pasien
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* Tabel Data Pasien */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
-            
-            <div className="relative w-full">
-              <svg className="w-4 h-4 text-slate-400 absolute left-4 top-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-              <input 
-                type="text" 
-                placeholder="Cari nama, ID, atau nomor telepon..." 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 border border-slate-200 rounded-2xl outline-none focus:ring-2 focus:ring-[#2EC4B6] text-xs text-slate-800"
-              />
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="text-slate-400 border-b border-slate-100">
-                    <th className="pb-3 font-semibold">ID Pasien</th>
-                    <th className="pb-3 font-semibold">Nama</th>
-                    <th className="pb-3 font-semibold">Usia</th>
-                    <th className="pb-3 font-semibold">Telepon</th>
-                    <th className="pb-3 font-semibold">Kunjungan Terakhir</th>
-                    <th className="pb-3 font-semibold">Total Kunjungan</th>
-                    <th className="pb-3 font-semibold">Status</th>
-                    <th className="pb-3 font-semibold text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 text-slate-700">
-                  {filteredPasien.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50 transition">
-                      <td className="py-3.5 font-bold text-[#2EC4B6]">{p.id}</td>
-                      <td className="py-3.5 flex items-center gap-2.5">
-                        <div className="w-7 h-7 bg-teal-50 text-[#2EC4B6] rounded-full flex items-center justify-center font-bold text-xs shadow-sm">
-                          {p.inisial}
-                        </div>
-                        <span className="font-bold text-slate-900">{p.nama}</span>
-                      </td>
-                      <td className="py-3.5 text-slate-600">{p.usia}</td>
-                      <td className="py-3.5 text-slate-600">{p.telepon}</td>
-                      <td className="py-3.5 text-slate-600">{p.kunjungan}</td>
-                      <td className="py-3.5">
-                        <span className="px-2.5 py-0.5 bg-teal-50 text-[#2EC4B6] rounded-full font-bold text-[10px]">
-                          {p.total}
-                        </span>
-                      </td>
-                      <td className="py-3.5">
-                        <span className="px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full font-bold text-[10px] flex items-center gap-1 w-fit">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> {p.status}
-                        </span>
-                      </td>
-                      <td className="py-3.5 text-right">
-                        <button 
-                          onClick={() => alert(`Melihat detail pasien: ${p.nama}`)}
-                          className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold transition"
-                        >
-                          Detail
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-          </div>
-
-        </main>
+        <button
+          onClick={() => setShowModalTambah(true)}
+          className="px-4 py-2.5 bg-[#25A99D] hover:bg-teal-600 text-white font-bold rounded-xl text-xs transition shadow-sm flex items-center justify-center gap-1.5 shrink-0"
+        >
+          <span>+</span> Tambah Pasien Baru
+        </button>
       </div>
+
+      {/* TABEL PASIEN */}
+      <div className="p-6 bg-white rounded-3xl border border-gray-100 shadow-sm space-y-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="relative flex-1 max-w-md">
+            <svg className="w-4 h-4 text-gray-400 absolute left-3.5 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Cari nama, ID pasien, atau nomor telepon..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full h-9 pl-9 pr-4 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:border-teal-500"
+            />
+          </div>
+          <span className="text-xs text-gray-400 font-medium">
+            {filteredPasien.length} dari {pasienList.length} pasien
+          </span>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs">
+            <thead>
+              <tr className="text-gray-400 border-b border-gray-100 font-semibold uppercase">
+                <th className="pb-3">ID Pasien</th>
+                <th className="pb-3">Nama Pasien</th>
+                <th className="pb-3">No. Telepon</th>
+                <th className="pb-3">Alamat</th>
+                <th className="pb-3">Kunjungan Terakhir</th>
+                <th className="pb-3">Status</th>
+                <th className="pb-3 text-center">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {filteredPasien.map((p) => (
+                <tr key={p.id} className="hover:bg-gray-50/50 transition cursor-pointer" onClick={() => setSelectedPasien(p)}>
+                  <td className="py-3.5 font-bold text-teal-600">{p.kode}</td>
+                  <td className="py-3.5">
+                    <p className="font-bold text-gray-900">{p.nama}</p>
+                    <p className="text-[10px] text-gray-400">{p.usia} tahun</p>
+                  </td>
+                  <td className="py-3.5 text-gray-600">+62 {p.telepon}</td>
+                  <td className="py-3.5 text-gray-500 truncate max-w-[180px]">{p.alamat}</td>
+                  <td className="py-3.5 text-gray-600 font-medium">{p.kunjunganTerakhir}</td>
+                  <td className="py-3.5">
+                    <span className="px-2.5 py-1 bg-teal-50 text-teal-600 rounded-full text-[10px] font-bold">
+                      {p.status}
+                    </span>
+                  </td>
+                  <td className="py-3.5 text-right">
+                    <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => setSelectedPasien(p)}
+                        className="px-3 py-1.5 border border-gray-200 hover:border-teal-500 hover:text-teal-600 rounded-xl text-xs font-semibold transition"
+                      >
+                        Detail
+                      </button>
+                      <button
+                        onClick={() => handleDeletePasien(p.id, p.nama)}
+                        className="p-1.5 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition"
+                        title="Hapus Pasien"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 1. MODAL DETAIL PASIEN */}
+      {selectedPasien && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-[#F4F5F7] w-full max-w-4xl rounded-3xl p-6 shadow-xl space-y-6 relative max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => setSelectedPasien(null)}
+                className="flex items-center gap-2 text-xs font-bold text-gray-700 hover:text-gray-900 transition"
+              >
+                <span>←</span> Detail Pasien
+              </button>
+              <button onClick={() => setSelectedPasien(null)} className="text-gray-400 hover:text-gray-600 font-bold text-sm">
+                ✕
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              <div className="lg:col-span-4 bg-white p-6 rounded-3xl border border-gray-100 shadow-sm text-center space-y-4">
+                <div className="w-20 h-20 bg-[#25A99D] text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto shadow-inner">
+                  {selectedPasien.nama.charAt(0)}
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">{selectedPasien.nama}</h3>
+                  <p className="text-xs text-gray-400 font-medium mt-0.5">{selectedPasien.kode}</p>
+                  <span className="inline-block mt-2 px-3 py-0.5 bg-gray-100 text-gray-500 rounded-full text-[10px] font-semibold">
+                    ⏱ {selectedPasien.status}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div className="p-3 bg-teal-50/50 rounded-2xl text-center border border-teal-100/50">
+                    <p className="text-lg font-bold text-[#25A99D]">{selectedPasien.totalKunjungan}</p>
+                    <p className="text-[10px] text-gray-400 font-medium">Kunjungan</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-2xl text-center border border-gray-100">
+                    <p className="text-lg font-bold text-gray-700">{selectedPasien.usia}</p>
+                    <p className="text-[10px] text-gray-400 font-medium">Tahun</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="lg:col-span-8 space-y-6">
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                  <h4 className="text-xs font-bold text-gray-900">Informasi Kontak</h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 shrink-0">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400">Telepon</p>
+                        <p className="font-bold text-gray-900">+62 {selectedPasien.telepon}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 shrink-0">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 012-2h2a2 2 0 012 2v1m-6 0h6" /></svg>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400">NIK</p>
+                        <p className="font-bold text-gray-900">{selectedPasien.nik}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 shrink-0">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400">Email</p>
+                        <p className="font-bold text-gray-900">{selectedPasien.email}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 shrink-0">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400">Alamat</p>
+                        <p className="font-bold text-gray-900">{selectedPasien.alamat}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 sm:col-span-2">
+                      <div className="w-8 h-8 rounded-xl bg-gray-50 flex items-center justify-center text-gray-400 shrink-0">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="1.8"><path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-gray-400">Kunjungan Terakhir</p>
+                        <p className="font-bold text-gray-900">{selectedPasien.kunjunganTerakhir}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-4">
+                  <h4 className="text-xs font-bold text-gray-900">Riwayat Kunjungan Singkat</h4>
+
+                  <div className="space-y-3">
+                    {selectedPasien.riwayat.length === 0 ? (
+                      <p className="text-xs text-gray-400 text-center py-4">Belum ada riwayat tindakan.</p>
+                    ) : (
+                      selectedPasien.riwayat.map((r, idx) => (
+                        <div key={idx} className="flex items-center justify-between pb-3 border-b border-gray-50 last:border-0 last:pb-0">
+                          <div>
+                            <p className="text-xs font-bold text-gray-900">{r.tindakan}</p>
+                            <p className="text-[10px] text-gray-400">{r.tanggal} · {r.dokter}</p>
+                          </div>
+                          <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full text-[10px] font-bold">
+                            ✓ {r.status}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. MODAL TAMBAH PASIEN BARU */}
+      {showModalTambah && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white w-full max-w-lg rounded-3xl p-6 shadow-xl space-y-5 relative">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-gray-900">Tambah Pasien Baru</h3>
+                <p className="text-[11px] text-gray-400">Lengkapi informasi pasien di bawah ini.</p>
+              </div>
+              <button onClick={() => setShowModalTambah(false)} className="text-gray-400 hover:text-gray-600 font-bold text-sm">
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitTambah} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Nama Lengkap</label>
+                  <input
+                    type="text"
+                    placeholder="Nama pasien"
+                    maxLength={50}
+                    value={nama}
+                    onChange={(e) => setNama(e.target.value)}
+                    className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:border-teal-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Usia</label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="0"
+                    value={usia}
+                    onChange={handleUsiaChange}
+                    className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Nomor Telepon</label>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3 text-xs font-semibold text-gray-500">+62</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="8xxxxxxxxxx"
+                      value={telepon}
+                      onChange={handlePhoneChange}
+                      className="w-full h-10 pl-11 pr-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:border-teal-500"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Email</label>
+                  <input
+                    type="email"
+                    placeholder="nama@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:border-teal-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Alamat</label>
+                <textarea
+                  rows={3}
+                  placeholder="Alamat lengkap pasien"
+                  maxLength={150}
+                  value={alamat}
+                  onChange={(e) => setAlamat(e.target.value)}
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:border-teal-500 resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Status</label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as 'Aktif' | 'Nonaktif')}
+                  className="w-full h-10 px-3 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-900 focus:outline-none focus:border-teal-500"
+                >
+                  <option value="Aktif">Aktif</option>
+                  <option value="Nonaktif">Nonaktif</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowModalTambah(false)}
+                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-bold transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-[#25A99D] hover:bg-teal-600 text-white rounded-xl text-xs font-bold transition shadow-sm"
+                >
+                  Tambah Pasien
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TOAST NOTIFIKASI KANAN BAWAH */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-start gap-3 p-3.5 px-4 bg-[#E6F8F3] border border-[#25A99D]/30 rounded-2xl shadow-xl max-w-xs transition animate-fade-in">
+          <div className="w-5 h-5 rounded-full border border-[#25A99D] flex items-center justify-center text-[#25A99D] text-[10px] font-bold shrink-0 mt-0.5">
+            ✓
+          </div>
+          <div className="flex-1 pr-2">
+            <p className="text-xs font-bold text-gray-900 leading-tight">Berhasil Ditambahkan</p>
+            <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">{toast}</p>
+          </div>
+          <button onClick={() => setToast(null)} className="text-gray-400 hover:text-gray-600 text-xs font-bold leading-none">
+            ×
+          </button>
+        </div>
+      )}
     </div>
   );
 }

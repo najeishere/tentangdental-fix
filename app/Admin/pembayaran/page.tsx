@@ -3,6 +3,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 
 export default function PembayaranAdmin() {
   const [tanggalHariIni, setTanggalHariIni] = useState('');
@@ -20,10 +22,12 @@ export default function PembayaranAdmin() {
     via: '',
   });
 
-  // Data Keuangan & Invoice
+  // Data Keuangan & Invoice — dari API
   const [kasMasuk, setKasMasuk] = useState(4545000);
   const [jumlahSudahLunas, setJumlahSudahLunas] = useState(2);
   const [isLunas, setIsLunas] = useState(false);
+  const [visit, setVisit] = useState(null);
+  const [totalTagihan, setTotalTagihan] = useState(0);
 
   const [daftarLunas, setDaftarLunas] = useState([
     { nama: 'Reza Pratama', inv: 'INV-2026-091', via: 'via QRIS', nominal: 'Rp 4.150.000' },
@@ -37,23 +41,13 @@ export default function PembayaranAdmin() {
 
   const handleKonfirmasiPembayaran = () => {
     const totalTagihan = 378000;
-    setKasMasuk((prev) => prev + totalTagihan);
-    setJumlahSudahLunas((prev) => prev + 1);
+    setKasMasuk(prev => prev + totalTagihan);
+    setJumlahSudahLunas(prev => prev + 1);
     setIsLunas(true);
-    
-    setDaftarLunas((prev) => [
+    setDaftarLunas(prev => [
       { nama: 'Dewi Rahayu', inv: 'INV-2026-092', via: `via ${metodePembayaran}`, nominal: 'Rp 378.000' },
-      ...prev,
+      ...prev
     ]);
-
-    // Set Notifikasi Toast langsung aktif
-    setToast({
-      show: true,
-      nama: 'Dewi Rahayu',
-      nominal: 'Rp 378.000',
-      via: metodePembayaran,
-    });
-
     setStep('sukses');
   };
 

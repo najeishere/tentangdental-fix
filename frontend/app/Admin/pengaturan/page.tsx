@@ -61,7 +61,6 @@ export default function PengaturanAdmin() {
       }
     };
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleMulaiEdit = () => {
@@ -69,15 +68,26 @@ export default function PengaturanAdmin() {
     setIsEditingProfil(true);
   };
 
-  const handleSimpanProfil = () => {
-    // Validasi sederhana sandi baru jika diisi
+  const handleSimpanProfil = async () => {
     if (profilData.sandiBaru && profilData.sandiBaru !== profilData.konfirmasiSandi) {
       alert('Konfirmasi kata sandi baru tidak cocok!');
       return;
     }
-    setOriginalProfilData(profilData);
-    setIsEditingProfil(false);
-    alert('Profil ditampilkan dari server, tetapi perubahan (termasuk kata sandi) belum dapat disimpan — backend belum menyediakan endpoint ubah profil/sandi akun. Perubahan hanya berlaku di sesi ini.');
+    try {
+      await fetchApi('/me', {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: profilData.nama,
+          phone: profilData.telepon,
+        }),
+      });
+      localStorage.setItem('adminNama', profilData.nama);
+      setOriginalProfilData(profilData);
+      setIsEditingProfil(false);
+      alert('Profil berhasil diperbarui!');
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Gagal menyimpan perubahan.');
+    }
   };
 
   const handleBatalEdit = () => {

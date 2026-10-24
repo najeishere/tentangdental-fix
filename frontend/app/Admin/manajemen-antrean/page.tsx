@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { fetchApi } from '@/utils/api';
 
 export default function ManajemenAntreanAdmin() {
   const router = useRouter();
@@ -19,10 +20,15 @@ export default function ManajemenAntreanAdmin() {
     nama: '',
     telepon: '',
     keluhan: '',
-    dokter: 'drg. Sari Dewi',
-    tanggal: '2026-09-30',
+    dokter: '',
+    tanggal: new Date().toISOString().slice(0, 10),
     jam: '09:00',
   });
+  const [doctors, setDoctors] = useState<{ id: number; name: string; specialist?: string }[]>([]);
+  const [patients, setPatients] = useState<{ id: number; name: string; phone?: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [daftarAntrean, setDaftarAntrean] = useState<{ id: number; no: string; nama: string; usia: string; dokter: string; tanggal: string; jam: string; keluhan: string; status: string; validasi: string; aksi: string }[]>([]);
 
   const daftarJam = [
     { jam: '07:30', status: 'tersedia' },
@@ -37,6 +43,24 @@ export default function ManajemenAntreanAdmin() {
     { jam: '12:00', status: 'terisi' },
   ];
 
+  const loadQueues = async () => {
+    const json = await fetchApi(`/queues?date=${formBaru.tanggal}`);
+    const rows = json?.data?.queues ?? [];
+    setDaftarAntrean(rows.map((row: { id: number; queue_number: string; patient?: { id: number; name: string }; doctor?: { name: string }; queue_date: string; queue_time?: string; complaint?: string; status: string }) => ({
+      id: row.id,
+      no: row.queue_number,
+      nama: row.patient?.name ?? 'Pasien',
+      usia: '',
+      dokter: row.doctor?.name ?? 'Belum ditentukan',
+      tanggal: new Date(row.queue_date).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }),
+      jam: row.queue_time?.slice(0, 5) ?? '-',
+      keluhan: row.complaint ?? '-',
+      status: row.status === 'in_progress' ? 'Dalam Proses' : row.status === 'completed' ? 'Selesai' : 'Menunggu',
+      validasi: row.status === 'waiting' ? 'Belum' : 'Tervalidasi',
+      aksi: row.status === 'waiting' ? 'Validasi' : row.status === 'in_progress' ? 'Billing' : 'Selesai',
+    })));
+  };
+
   useEffect(() => {
     const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
     const todayStr = new Date().toLocaleDateString('id-ID', options);
@@ -45,58 +69,54 @@ export default function ManajemenAntreanAdmin() {
     const savedJabatan = localStorage.getItem('adminJabatan');
     if (savedNama) setNamaAdmin(savedNama);
     if (savedJabatan) setJabatanAdmin(savedJabatan);
+    const load = async () => {
+      try {
+        const [options] = await Promise.all([fetchApi('/admin/options')]);
+        setPatients(options?.data?.patients ?? []);
+        setDoctors(options?.data?.doctors ?? []);
+        await loadQueues();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Gagal memuat antrean dari server.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (localStorage.getItem('token')) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const [daftarAntrean, setDaftarAntrean] = useState([
-    { id: 1, no: 'A-040', nama: 'Dewi Rahayu', usia: '42 tahun', dokter: 'drg. Sari Dewi', tanggal: '30 September 2026', jam: '09:30', keluhan: 'Gigi sensitif', status: 'Dalam Proses', validasi: 'Tervalidasi', aksi: 'Billing' },
-    { id: 2, no: 'A-041', nama: 'Budi Santoso', usia: '31 tahun', dokter: 'drg. Sari Dewi', tanggal: '30 September 2026', jam: '10:00', keluhan: 'Scaling rutin', status: 'Menunggu', validasi: 'Belum', aksi: 'Validasi' },
-  ]);
 
   const filteredAntrean = daftarAntrean.filter(item => 
     item.nama.toLowerCase().includes(searchQuery.toLowerCase()) || 
     item.no.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleProsesAksi = (id: number, currentAksi: string) => {
+  const handleProsesAksi = async (id: number, currentAksi: string) => {
     if (currentAksi === 'Billing') {
       router.push('/Admin/pencatatan-tagihan');
       return;
     }
 
-    setDaftarAntrean(prev => prev.map(item => {
-      if (item.id === id && currentAksi === 'Validasi') {
-        return { ...item, status: 'Dalam Proses', validasi: 'Tervalidasi', aksi: 'Billing' };
-      }
-      return item;
-    }));
+    try {
+      await fetchApi(`/queues/${id}/validate`, { method: 'POST' });
+      await loadQueues();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal memvalidasi antrean.');
+    }
   };
 
-  const handleTambahAntrean = (e: React.FormEvent) => {
+  const handleTambahAntrean = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const dateObj = new Date(formBaru.tanggal);
-    const options: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
-    const formattedDate = isNaN(dateObj.getTime()) ? formBaru.tanggal : dateObj.toLocaleDateString('id-ID', options);
-
-    const nomorBaru = `A-04${daftarAntrean.length + 2}`;
-    const dataBaru = {
-      id: Date.now(),
-      no: nomorBaru,
-      nama: formBaru.nama,
-      usia: '25 tahun',
-      dokter: formBaru.dokter,
-      tanggal: formattedDate,
-      jam: formBaru.jam,
-      keluhan: formBaru.keluhan,
-      status: 'Menunggu',
-      validasi: 'Belum',
-      aksi: 'Validasi',
-    };
-
-    setDaftarAntrean([dataBaru, ...daftarAntrean]);
-    setIsModalOpen(false);
-    setFormBaru({ nama: '', telepon: '', keluhan: '', dokter: 'drg. Sari Dewi', tanggal: '2026-09-30', jam: '09:00' });
-    alert(`Antrean manual untuk tanggal ${formattedDate} berhasil ditambahkan!`);
+    try {
+      const patient = patients.find((item) => item.name === formBaru.nama);
+      if (!patient) throw new Error('Pilih pasien dari data pasien yang tersedia.');
+      await fetchApi('/queues', { method: 'POST', body: JSON.stringify({ patient_id: patient.id, doctor_id: formBaru.dokter ? Number(formBaru.dokter) : null, queue_date: formBaru.tanggal, queue_time: formBaru.jam, complaint: formBaru.keluhan }) });
+      await loadQueues();
+      setIsModalOpen(false);
+      setFormBaru({ nama: '', telepon: '', keluhan: '', dokter: '', tanggal: formBaru.tanggal, jam: '09:00' });
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Gagal menambahkan antrean.');
+    }
   };
 
   return (
@@ -227,9 +247,8 @@ export default function ManajemenAntreanAdmin() {
         {/* Isi Halaman */}
         <main className="p-6 space-y-5 overflow-y-auto">
           
-          <div className="px-4 py-3 bg-amber-50 border border-amber-100 text-amber-700 rounded-xl text-[11px] font-semibold">
-            Data contoh — manajemen antrean belum terhubung backend (belum ada endpoint antrean); data tersimpan lokal di browser.
-          </div>
+          {loading && <div className="px-4 py-3 bg-teal-50 border border-teal-100 text-teal-700 rounded-xl text-[11px] font-semibold">Memuat antrean dari server...</div>}
+          {error && <div className="px-4 py-3 bg-red-50 border border-red-100 text-red-700 rounded-xl text-[11px] font-semibold">{error}</div>}
 
           <div className="flex justify-end">
             <button 
@@ -258,14 +277,15 @@ export default function ManajemenAntreanAdmin() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-slate-500 font-semibold mb-1">Nama Pasien</label>
-                    <input 
-                      type="text" 
-                      placeholder="Nama lengkap" 
+                    <select
                       value={formBaru.nama}
                       onChange={(e) => setFormBaru({...formBaru, nama: e.target.value})}
                       required
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6]"
-                    />
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6] bg-white"
+                    >
+                      <option value="">Pilih pasien</option>
+                      {patients.map((patient) => <option key={patient.id} value={patient.name}>{patient.name}</option>)}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-slate-500 font-semibold mb-1">No. Telepon</label>
@@ -299,13 +319,13 @@ export default function ManajemenAntreanAdmin() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-slate-500 font-semibold mb-1">Dokter</label>
-                    <select 
+                    <select
                       value={formBaru.dokter}
                       onChange={(e) => setFormBaru({...formBaru, dokter: e.target.value})}
                       className="w-full px-4 py-2.5 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2EC4B6] bg-white"
                     >
-                      <option>drg. Sari Dewi</option>
-                      <option>drg. Hendra K.</option>
+                      <option value="">Belum ditentukan</option>
+                      {doctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name}</option>)}
                     </select>
                   </div>
                   <div>

@@ -19,16 +19,15 @@ export default function PembayaranAdmin() {
   const [uangDiterima, setUangDiterima] = useState('');
 
   // Data Keuangan & Invoice — dari API
-  const [kasMasuk, setKasMasuk] = useState(4545000);
-  const [jumlahSudahLunas, setJumlahSudahLunas] = useState(2);
+  const [kasMasuk, setKasMasuk] = useState(0);
+  const [jumlahSudahLunas, setJumlahSudahLunas] = useState(0);
   const [isLunas, setIsLunas] = useState(false);
-  const [visit, setVisit] = useState<{ id: number; invoice_number: string; total: number; payment_status: string; patient_name: string; visit_date: string } | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [visit, setVisit] = useState<{ id: number; invoice_number: string; total: number; payment_status: string; patient_name?: string; patient?: { name?: string }; visit_date: string; payments?: { method: string }[] } | null>(null);
   const [totalTagihan, setTotalTagihan] = useState(0);
 
-  const [daftarLunas, setDaftarLunas] = useState([
-    { nama: 'Reza Pratama', inv: 'INV-2026-091', via: 'via QRIS', nominal: 'Rp 4.150.000' },
-    { nama: 'Rina Kartika', inv: 'INV-2026-089', via: 'via QRIS', nominal: 'Rp 395.000' },
-  ]);
+  const [daftarLunas, setDaftarLunas] = useState<{ nama: string; inv: string; via: string; nominal: string }[]>([]);
 
   useEffect(() => {
     // Tanggal otomatis menyesuaikan hari ini
@@ -42,26 +41,30 @@ export default function PembayaranAdmin() {
     if (savedJabatan) setJabatanAdmin(savedJabatan);
   }, []);
 
-  // Ambil data kunjungan/Invoice ketika komponen mount atau step berubah
+  // Semua invoice pembayaran berasal dari server, tidak dari data contoh.
   useEffect(() => {
     const loadVisit = async () => {
       try {
-        // Coba ambil visit terakhir atau yang sedang diproses
-        // Untuk sekarang gunakan visit statis karena belum ada navigasi dari pencatatan-tagihan
-        // di masa depan bisa dari API: fetchApi('/visits/latest')
-        const dummyVisit = {
-          id: 13,
-          invoice_number: 'INV-2026-092',
-          total: 378000,
-          payment_status: 'partial',
-          patient_name: 'Dewi Rahayu',
-          visit_date: '16 Sep 2026',
-        };
-        setVisit(dummyVisit);
-        setTotalTagihan(dummyVisit?.total ?? 0);
+        const json = await fetchApi('/visits?per_page=100');
+        const rows = json?.data?.visits?.data ?? [];
+        const unpaid = rows.filter((row: { payment_status?: string }) => row.payment_status !== 'paid');
+        const paid = rows.filter((row: { payment_status?: string }) => row.payment_status === 'paid');
+        const next = unpaid[0] ?? null;
+        setVisit(next);
+        setTotalTagihan(Number(next?.total ?? 0));
+        setIsLunas(!next);
+        setJumlahSudahLunas(paid.length);
+        setDaftarLunas(paid.map((row: { patient?: { name?: string }; invoice_number: string; total: number; payments?: { method: string }[] }) => ({
+          nama: row.patient?.name ?? 'Pasien',
+          inv: row.invoice_number,
+          via: `via ${row.payments?.[0]?.method ?? 'pembayaran'}`,
+          nominal: `Rp ${Number(row.total ?? 0).toLocaleString('id-ID')}`,
+        })));
+        setLoadError('');
       } catch (e) {
-        console.error('Gagal load visit', e);
+        setLoadError(e instanceof Error ? e.message : 'Gagal memuat invoice dari server.');
       }
+      setLoading(false);
     };
     loadVisit();
   }, [step]);
@@ -101,13 +104,13 @@ export default function PembayaranAdmin() {
 
       // Tambahkan ke daftar lunas
       setDaftarLunas(prev => [
-        { nama: visit.patient_name, inv: visit.invoice_number, via: `via ${metodePembayaran}`, nominal: `Rp ${paymentAmount.toLocaleString('id-ID')}` },
+        { nama: visit.patient?.name ?? visit.patient_name ?? 'Pasien', inv: visit.invoice_number, via: `via ${metodePembayaran}`, nominal: `Rp ${paymentAmount.toLocaleString('id-ID')}` },
         ...prev
       ]);
 
       setStep('sukses');
-    } catch (err: any) {
-      alert(err.message || 'Gagal mencatat pembayaran. Periksa kembali data.');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Gagal mencatat pembayaran. Periksa kembali data.');
       console.error('Payment error:', err);
     }
   };
@@ -243,7 +246,8 @@ export default function PembayaranAdmin() {
         {/* Isi Halaman */}
         <main className="p-6 space-y-6 overflow-y-auto">
           
-          {step === 'sukses' ? (
+          {loadError && <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-xs font-medium text-red-700">{loadError}</div>}
+          {loading ? <div className="rounded-2xl bg-white p-10 text-center text-sm text-slate-400">Memuat invoice dari server...</div> : step === 'sukses' ? (
             /* LAYAR SUKSES PEMBAYARAN */
             <div className="bg-white p-12 rounded-2xl border border-slate-200/80 shadow-sm text-center space-y-5 my-auto">
               <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
@@ -251,7 +255,7 @@ export default function PembayaranAdmin() {
               </div>
               <div className="space-y-1">
                 <h2 className="text-lg font-bold text-slate-900">Pembayaran Berhasil!</h2>
-                <p className="text-xs text-slate-500">Invoice INV-2026-092 telah lunas dan dicatat ke kas harian.</p>
+                <p className="text-xs text-slate-500">Pembayaran telah dicatat ke server dan jurnal kas.</p>
               </div>
               <div className="flex justify-center gap-3 pt-3">
                 <button 
@@ -261,7 +265,7 @@ export default function PembayaranAdmin() {
                   Pembayaran Lain
                 </button>
                 <button 
-                  onClick={() => alert('Navigasi ke Rekonsiliasi')}
+                  onClick={() => router.push('/Admin/rekonsiliasi')}
                   className="px-6 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition"
                 >
                   Ke Rekonsiliasi
@@ -316,15 +320,15 @@ export default function PembayaranAdmin() {
                       <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm text-center text-slate-400 text-xs">
                         ✓ Semua invoice sudah lunas
                       </div>
-                    ) : (
+                    ) : visit ? (
                       <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex justify-between items-center">
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
-                            <span className="text-xs font-bold text-[#2EC4B6]">INV-2026-092</span>
+                            <span className="text-xs font-bold text-[#2EC4B6]">{visit.invoice_number}</span>
                             <span className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded-full text-[10px] font-bold">Finalisasi</span>
                           </div>
-                          <p className="text-xs font-bold text-slate-900">Dewi Rahayu</p>
-                          <p className="text-sm font-bold text-slate-900 pt-1">Rp 378.000</p>
+                          <p className="text-xs font-bold text-slate-900">{visit.patient_name ?? visit.patient?.name ?? 'Pasien'}</p>
+                          <p className="text-sm font-bold text-slate-900 pt-1">Rp {totalTagihan.toLocaleString('id-ID')}</p>
                         </div>
                         <button 
                           onClick={() => setStep('proses')}
@@ -333,7 +337,7 @@ export default function PembayaranAdmin() {
                           Proses Bayar
                         </button>
                       </div>
-                    )}
+                    ) : <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm text-center text-slate-400 text-xs">Tidak ada invoice yang menunggu pembayaran.</div>}
                   </div>
 
                   {/* Sudah Lunas Hari Ini */}
@@ -367,8 +371,8 @@ export default function PembayaranAdmin() {
                       </div>
 
                       <div className="p-4 bg-slate-50 rounded-xl space-y-1">
-                        <p className="text-[10px] text-slate-400">Total Tagihan — Dewi Rahayu</p>
-                        <p className="text-lg font-bold text-slate-900">Rp 378.000</p>
+                         <p className="text-[10px] text-slate-400">Total Tagihan — {visit?.patient_name ?? visit?.patient?.name ?? 'Pasien'}</p>
+                         <p className="text-lg font-bold text-slate-900">Rp {totalTagihan.toLocaleString('id-ID')}</p>
                       </div>
 
                       {/* Pilihan Metode Pembayaran */}

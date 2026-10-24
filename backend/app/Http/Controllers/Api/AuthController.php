@@ -61,6 +61,37 @@ class AuthController extends Controller
     }
 
     /**
+     * Update profil user yang sedang login.
+     */
+    public function updateProfile(Request $request): JsonResponse
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'phone' => ['sometimes', 'string', 'max:20'],
+            'password' => ['sometimes', 'string', 'min:6', 'confirmed'],
+        ]);
+
+        if (isset($data['name'])) {
+            $user->name = $data['name'];
+        }
+        if (isset($data['phone'])) {
+            $user->phone = $data['phone'];
+        }
+        if (isset($data['password'])) {
+            $user->password = Hash::make($data['password']);
+        }
+
+        $user->save();
+
+        return $this->success([
+            'user' => $this->userPayload($user, $user->primaryRole()),
+            'message' => 'Profil berhasil diperbarui',
+        ]);
+    }
+
+    /**
      * Logout — mencabut token aktif.
      */
     public function logout(Request $request): JsonResponse

@@ -3,12 +3,14 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ClinicController;
 use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\DatabaseController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\KasirController;
 use App\Http\Controllers\Api\LabShipmentController;
 use App\Http\Controllers\Api\MasterController;
 use App\Http\Controllers\Api\ReportsController;
+use App\Http\Controllers\Api\QueueController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -29,7 +31,19 @@ Route::get('clinic/pubinfo', [ClinicController::class, 'publicInfo']);
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('me', [AuthController::class, 'me']);
+    Route::put('me', [AuthController::class, 'updateProfile']);
     Route::get('dashboard', [DashboardController::class, 'index']);
+
+    Route::prefix('queues')->middleware('checkRole:admin')->group(function () {
+        Route::get('/', [QueueController::class, 'index']);
+        Route::post('/', [QueueController::class, 'store']);
+        Route::post('{queue}/validate', [QueueController::class, 'validateQueue']);
+    });
+
+    Route::prefix('admin/database')->middleware('checkRole:admin')->group(function () {
+        Route::get('tables', [DatabaseController::class, 'tables']);
+        Route::get('{table}', [DatabaseController::class, 'rows']);
+    });
 
     // KASIR & ADMIN — proses kunjungan & pembayaran
     Route::post('visits', [KasirController::class, 'storeVisit'])->middleware('checkRole:admin');

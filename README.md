@@ -1,31 +1,22 @@
-# TentangDental-Fix
+# TentangDental
 
-Sistem informasi manajemen klinik gigi: **frontend** (Next.js) dan **backend** (Laravel) dalam satu repo.
+Sistem informasi manajemen klinik gigi dengan frontend Next.js dan backend Laravel.
 
 ## Struktur
 
+```text
+backend/    Laravel 13 API
+frontend/   Next.js 16 + React 19 + Tailwind CSS v4
 ```
-tentangdental-fix/
-├── backend/    # Laravel 12 API (PHP 8.2+)
-└── frontend/   # Next.js 16 + Tailwind CSS v4
-```
-
-## Prasyarat
-
-- PHP 8.2+ dengan ekstensi `pdo_mysql`, `mbstring`
-- Composer
-- Node.js 20+ dan npm
-- MariaDB / MySQL
 
 ## Menjalankan Backend
 
 ```bash
 cd backend
-composer install            # skip jika folder vendor sudah ada
+composer install
 cp .env.example .env
 php artisan key:generate
-# sesuaikan DB_DATABASE, DB_USERNAME, DB_PASSWORD di .env
-php artisan migrate --seed   # membuat tabel + akun demo
+php artisan migrate --seed
 php artisan serve --port=8002
 ```
 
@@ -35,36 +26,36 @@ API tersedia di `http://127.0.0.1:8002/api`.
 
 ```bash
 cd frontend
-npm install                 # skip jika folder node_modules sudah ada
+npm install
 npm run dev
 ```
 
-Buka `http://localhost:3000` — otomatis diarahkan ke halaman login.
-
-Frontend memanggil backend di `http://127.0.0.1:8002/api` (bisa diubah lewat
-variabel lingkungan `NEXT_PUBLIC_API_URL`).
+Buka `http://localhost:3000`. URL API dapat diubah melalui `NEXT_PUBLIC_API_URL`.
 
 ## Akun Demo
 
-| Role    | Email                  | Password | Halaman login        |
-|---------|------------------------|----------|----------------------|
-| Admin   | admin@tentangdental.id | password | `/Admin/login`       |
-| Kasir   | kasir@tentangdental.id | password | `/Admin/login`       |
-| Dokter  | sari@tentangdental.id  | password | `/Klinik/login`      |
-| Pasien  | budi@example.com       | password | `/Pasien/login`      |
+| Role | Email | Password |
+|---|---|---|
+| Admin | `admin@tentangdental.id` | `password` |
+| Kasir | `kasir@tentangdental.id` | `password` |
+| Dokter | `sari@tentangdental.id` | `password` |
+| Pasien | `budi@example.com` | `password` |
 
-## Alur Login
+## Fitur Server
 
-Semua halaman login memakai sistem yang sama:
+- Billing dan invoice tersimpan di MariaDB melalui API.
+- Pembayaran cash, QRIS, transfer, verifikasi, piutang, dan ledger.
+- Master tindakan, inventory, pengiriman lab, biaya, laporan, dan dashboard.
+- Manajemen antrean tersimpan di tabel `queues` melalui `/api/queues`.
+- `/Admin/database` adalah viewer read-only untuk admin; kolom password dan token tidak dikembalikan.
 
-1. `POST /api/auth/login` dengan `{ email, password }`
-2. Respons berbentuk `{ success: true, data: { token, user: { name, role, ... } } }`
-3. Token disimpan di `localStorage` dan dikirim sebagai `Authorization: Bearer <token>`
-4. Redirect sesuai role ke dashboard masing-masing
-
-## Menjalankan Test Backend
+## Pengujian
 
 ```bash
-cd backend
-php artisan test
+cd backend && php artisan test
+cd frontend && npx tsc --noEmit && npm run lint && npm run build
 ```
+
+## Deployment
+
+Vercel hanya menjalankan frontend Next.js. Backend Laravel dan MariaDB harus dideploy ke server terpisah. Set `NEXT_PUBLIC_API_URL` di environment Vercel ke URL API Laravel production.
